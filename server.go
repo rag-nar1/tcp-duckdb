@@ -1,16 +1,18 @@
 package main
 
 import (
+	"bufio"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"log"
 	"net"
 	"os"
-	"bufio"
 	"strings"
+
 	"github.com/joho/godotenv"
-	_ "github.com/marcboeker/go-duckdb"
 	_ "github.com/lib/pq"
+	_ "github.com/marcboeker/go-duckdb"
 )
 
 
@@ -70,6 +72,7 @@ func HandleConnection(connection net.Conn) {
 	authenticated := false
 	var Username , Password , Database string
 	var UID , DBID int
+outer:
 	for {
 		message, err := reader.ReadString('\n')
 		if err != nil { // send error
@@ -78,9 +81,13 @@ func HandleConnection(connection net.Conn) {
 		}
 		
 		message = strings.TrimSpace(message)
-		request := strings.Split(message , " ")
-
-		if request[0] == "AUTH" {
+		if !strings.HasPrefix(message , "AUTH") && strings.HasPrefix(message , "QUERY") {
+			connection.Write([]byte("Error invalid request\n"))
+			continue
+		}
+		
+		if strings.HasPrefix(message , "AUTH") {
+			request := strings.Split(message , " ")
 			if len(request) != 4 {
 				connection.Write([]byte("Error invalid request\n"))
 				continue
@@ -92,7 +99,7 @@ func HandleConnection(connection net.Conn) {
 				connection.Write([]byte("Error while executing query user\n" + err.Error()))
 				continue
 			}
-			fmt.Println(userAuth)
+
 			var correctPass *string = new(string)
 			var uid *int = new(int)
 			userAuth.Next()
@@ -102,7 +109,6 @@ func HandleConnection(connection net.Conn) {
 				continue
 			}
 
-			
 			//check the password
 			if *correctPass != Password {
 				connection.Write([]byte("Error wrong password\n"))
@@ -129,13 +135,75 @@ func HandleConnection(connection net.Conn) {
 			authenticated = true
 
 			connection.Write([]byte("success\n"))
-			fmt.Println(UID , DBID , authenticated)
 			continue
 		}
 
+		if !authenticated {
+			connection.Write([]byte("Error you can't excute queries with authentication\n"))
+			continue
+		}
 
-		
+		query := strings.TrimPrefix(message , "QUERY ")
 
+		// get the databse name 
+		dbnameResult , err := db.Query(fmt.Sprintf("SELECT name FROM databases WHERE id = %d" , DBID))
+		if err != nil {
+			connection.Write([]byte("Error while executing query db\n" + err.Error()))
+			continue
+		}
+
+		var dbname *string = new(string)
+		dbnameResult.Next()
+		err = dbnameResult.Scan(dbname)
+		if err != nil {
+			connection.Write([]byte("Error while scanning db name\n" + err.Error()))
+			continue
+		}
+
+		userDbPath := dbpath + strconv.Itoa(DBID) + "_" + *dbname
+
+		userDb , err := sql.Open("duckdb" , userDbPath)
+		if err != nil {
+			connection.Write([]byte("Error while connecting to database\n" + err.Error()))
+			continue
+		}
+
+		//check if the query is select or not
+		if strings.HasPrefix(strings.ToUpper(query) , "SELECT") {
+			queryResult , err := userDb.Query(query)
+			if err != nil {
+				connection.Write([]byte("Error while executing query\n" + err.Error()))
+				continue
+			}
+
+			var respones string
+			for queryResult.Next() {
+				var row string
+				err = queryResult.Scan(&row)
+				if err != nil {
+					connection.Write([]byte("Error while scanning row\n" + err.Error()))
+					continue outer
+				}
+				respones += row + "\n"
+			}
+			respones = "success\n" + respones
+			connection.Write([]byte(respones))
+			continue
+		}
+
+		//if the query is not select we use exec 
+		queryResult , err := userDb.Exec(query)
+		if err != nil {
+			connection.Write([]byte("Error while executing query\n" + err.Error()))
+			continue
+		}
+		EffectedRows , err := queryResult.RowsAffected()
+		if err != nil {
+			connection.Write([]byte("Error while getting effected rows\n" + err.Error()))
+			continue
+		}
+		respones := fmt.Sprintf("success\nEffected Rows : %d\n" , EffectedRows)
+		connection.Write([]byte(respones))
 
 	}
 
@@ -173,6 +241,10 @@ func init() {
  	db , err = sql.Open("postgres" , connection)
 	checkFetal(err)
 	fmt.Println("connected to postgresql")
+
+	currentdir , err = os.Getwd()
+	checkFetal(err)
+	dbpath = currentdir + "/db/"
 }
 
 func main() {
