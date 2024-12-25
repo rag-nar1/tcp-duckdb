@@ -55,6 +55,59 @@ func CreateListener(address string) (net.Listener , error) {
 }
 
 
+func ProccessQuery(queryResult *sql.Rows) (string , error) {
+	columns , err := queryResult.Columns()
+	columnsTypes , err := queryResult.ColumnTypes()
+	if err != nil {
+		return "" , err
+	}
+
+	var respones string = ""
+	for _ , column := range columns {
+		respones += column + " , "
+	}
+	respones = strings.TrimSuffix(respones , " , ")
+	respones += "\n"
+
+	for queryResult.Next() {
+		rowData := make([]interface{} , len(columns))
+		rowDataPtr := make([]interface{} , len(columns))
+		for i := range rowData {
+			rowDataPtr[i] = &rowData[i]
+		}
+
+		err = queryResult.Scan(rowDataPtr...)
+
+		values := make(map[string]interface{})
+		for i , column := range columns {
+			values[column] = rowData[i]
+		}
+
+		for i , column := range columns {
+			// interprate the value based on the type
+			switch columnsTypes[i].DatabaseTypeName() {
+				case "INT":
+					respones += fmt.Sprintf("%d" , values[column].(int))
+				case "BIGINT":
+					respones += fmt.Sprintf("%d" , values[column].(int64))
+				case "FLOAT":
+					respones += fmt.Sprintf("%f" , values[column].(float64))
+				case "VARCHAR":
+					respones += fmt.Sprintf("%s" , values[column].(string))
+				case "BOOL":
+					respones += fmt.Sprintf("%t" , values[column].(bool))
+				default:
+					respones += fmt.Sprintf("%v" , values[column])
+			}
+			respones += " , "
+		}
+		respones = strings.TrimSuffix(respones , " , ")
+		respones += "\n"
+	}
+	return respones , nil
+}
+
+
 
 func HandleAdmin(connection net.Conn) {
 	defer connection.Close()
@@ -134,7 +187,7 @@ func HandleConnection(connection net.Conn) {
 	authenticated := false
 	var Username , Password , Database string
 	var UID , DBID int
-outer:
+
 	for {
 		message, err := reader.ReadString('\n')
 		if err != nil { // send error
@@ -239,12 +292,12 @@ outer:
 		}
 
 		userDbPath := dbpath + strconv.Itoa(DBID) + "_" + *dbname + ".db"
-		fmt.Println(userDbPath)
 		userDb , err := sql.Open("duckdb" , userDbPath)
 		if err != nil {
 			connection.Write([]byte("Error while connecting to database\n" + err.Error() + "\n"))
 			continue
 		}
+		defer userDb.Close()
 
 		//check if the query is select or not
 		if strings.HasPrefix(strings.ToUpper(query) , "SELECT") {
@@ -253,10 +306,15 @@ outer:
 				connection.Write([]byte("Error while executing query\n" + err.Error() + "\n"))
 				continue
 			}
-			respones := ProccessQuery(queryResult)
+			respones , err := ProccessQuery(queryResult)
+			if err != nil {
+				connection.Write([]byte("Error while processing query\n" + err.Error() + "\n"))
+				continue
+			}
+
 			respones = "success\n" + respones
 			connection.Write([]byte(respones))
-			continue
+			continue 
 		}
 
 		//if the query is not select we use exec 
