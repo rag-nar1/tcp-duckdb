@@ -2,15 +2,14 @@ package main
 
 import (
 	"bufio"
-	"database/sql"
 	"fmt"
 	"strconv"
 	"log"
 	"net"
 	"os"
 	"strings"
-
 	"github.com/joho/godotenv"
+	"database/sql"
 	_ "github.com/lib/pq"
 	_ "github.com/marcboeker/go-duckdb"
 )
@@ -55,19 +54,82 @@ func CreateListener(address string) (net.Listener , error) {
 	return listner , nil
 }
 
+
+
+func HandleAdmin(connection net.Conn) {
+	defer connection.Close()
+
+	reader := bufio.NewReader(connection)
+	for {
+		command , err := reader.ReadString('\n')
+		if err != nil {
+			connection.Write([]byte("Error while reading from the connection\nConnection Closed"))
+			return 
+		}
+
+		command = strings.TrimSpace(command)
+
+		if !strings.HasPrefix(command , "CREATE") && !strings.HasPrefix(command , "DELETE") && !strings.HasPrefix(command , "EXIT") {
+			connection.Write([]byte("Error invalid request\n"))
+			continue
+		}
+		
+		if strings.HasPrefix(command , "EXIT") {
+			connection.Write([]byte("success\n"))
+			return
+		}
+
+		if strings.HasPrefix(command , "CREATE") {
+			request := strings.Split(command , " ")
+			if len(request) != 2 {
+				connection.Write([]byte("Error invalid request\n"))
+				continue
+			}
+
+			dbname := request[1]
+			// create the database file in the db directory
+			_ , err := sql.Open("duckdb" , dbpath + dbname + ".db")
+			if err != nil {
+				connection.Write([]byte("Error while creating database\n" + err.Error() + "\n"))
+				continue
+			}
+			connection.Write([]byte("success\n"))
+			continue
+		}
+
+		request := strings.Split(command , " ")
+		if len(request) != 2 {
+			connection.Write([]byte("Error invalid request\n"))
+			continue
+		}
+
+		dbname := request[1]
+
+		// delete the database file in the db directory
+		err = os.Remove(dbpath + dbname + ".db")
+		
+		if err != nil {
+			connection.Write([]byte("Error while deleting database\n" + err.Error() + "\n"))
+			continue
+		}
+		connection.Write([]byte("success\n"))
+		continue
+	}
+
+}
+
 /**
  * function handles connections while it's open and respones to requets
  * requests format
 	* AUTH < Username > < Password > < Database >
 	* QUERY < SqlQuery >
+	* ADMIN < Password > 
 */
 
 
 func HandleConnection(connection net.Conn) {
 	defer connection.Close()
 
-	
-	
 	reader := bufio.NewReader(connection)
 	authenticated := false
 	var Username , Password , Database string
@@ -81,9 +143,25 @@ outer:
 		}
 		
 		message = strings.TrimSpace(message)
-		if !strings.HasPrefix(message , "AUTH") && strings.HasPrefix(message , "QUERY") {
+		if !strings.HasPrefix(message , "AUTH") && !strings.HasPrefix(message , "QUERY") && !strings.HasPrefix(message , "ADMIN") && !strings.HasPrefix(message , "EXIT") {
 			connection.Write([]byte("Error invalid request\n"))
 			continue
+		}
+
+		if strings.HasPrefix(message , "EXIT") {
+			connection.Write([]byte("success\n"))
+			return
+		}
+
+		if strings.HasPrefix(message , "ADMIN") {
+			ADMINPASS := strings.Split(message , " ")[1]
+			if ADMINPASS != os.Getenv("ADMIN_PASS") {
+				connection.Write([]byte("Error wrong admin password\n"))
+				continue
+			}
+			connection.Write([]byte("success\n"))
+			HandleAdmin(connection)
+			return
 		}
 		
 		if strings.HasPrefix(message , "AUTH") {
@@ -96,7 +174,7 @@ outer:
 			Username , Password , Database = request[1] , request[2] , request[3]
 			userAuth , err := db.Query(fmt.Sprintf("SELECT id , password FROM users WHERE username LIKE '%s'" , Username))
 			if err != nil {
-				connection.Write([]byte("Error while executing query user\n" + err.Error()))
+				connection.Write([]byte("Error while executing query user\n" + err.Error() + "\n"))
 				continue
 			}
 
@@ -105,7 +183,7 @@ outer:
 			userAuth.Next()
 			err = userAuth.Scan(uid , correctPass)
 			if err != nil {
-				connection.Write([]byte("Error invalid Username\n" + err.Error()))
+				connection.Write([]byte("Error invalid Username\n" + err.Error() + "\n"))
 				continue
 			}
 
@@ -119,7 +197,7 @@ outer:
 
 			dbAuth , err := db.Query(fmt.Sprintf("SELECT id FROM databases WHERE name LIKE '%s' AND userid = %d" , Database , UID))
 			if err != nil {
-				connection.Write([]byte("Error while executing query db\n" + err.Error()))
+				connection.Write([]byte("Error while executing query db\n" + err.Error() + "\n"))
 				continue
 			}
 
@@ -127,7 +205,7 @@ outer:
 			dbAuth.Next()
 			err = dbAuth.Scan(dbid)
 			if err != nil {
-				connection.Write([]byte("Error this user does not own this database \n" + err.Error()))
+				connection.Write([]byte("Error this user does not own this database \n" + err.Error() + "\n"))
 				continue
 			}
 
@@ -148,7 +226,7 @@ outer:
 		// get the databse name 
 		dbnameResult , err := db.Query(fmt.Sprintf("SELECT name FROM databases WHERE id = %d" , DBID))
 		if err != nil {
-			connection.Write([]byte("Error while executing query db\n" + err.Error()))
+			connection.Write([]byte("Error while executing query db\n" + err.Error() + "\n"))
 			continue
 		}
 
@@ -156,15 +234,15 @@ outer:
 		dbnameResult.Next()
 		err = dbnameResult.Scan(dbname)
 		if err != nil {
-			connection.Write([]byte("Error while scanning db name\n" + err.Error()))
+			connection.Write([]byte("Error while scanning db name\n" + err.Error() + "\n"))
 			continue
 		}
 
-		userDbPath := dbpath + strconv.Itoa(DBID) + "_" + *dbname
-
+		userDbPath := dbpath + strconv.Itoa(DBID) + "_" + *dbname + ".db"
+		fmt.Println(userDbPath)
 		userDb , err := sql.Open("duckdb" , userDbPath)
 		if err != nil {
-			connection.Write([]byte("Error while connecting to database\n" + err.Error()))
+			connection.Write([]byte("Error while connecting to database\n" + err.Error() + "\n"))
 			continue
 		}
 
@@ -172,20 +250,10 @@ outer:
 		if strings.HasPrefix(strings.ToUpper(query) , "SELECT") {
 			queryResult , err := userDb.Query(query)
 			if err != nil {
-				connection.Write([]byte("Error while executing query\n" + err.Error()))
+				connection.Write([]byte("Error while executing query\n" + err.Error() + "\n"))
 				continue
 			}
-
-			var respones string
-			for queryResult.Next() {
-				var row string
-				err = queryResult.Scan(&row)
-				if err != nil {
-					connection.Write([]byte("Error while scanning row\n" + err.Error()))
-					continue outer
-				}
-				respones += row + "\n"
-			}
+			respones := ProccessQuery(queryResult)
 			respones = "success\n" + respones
 			connection.Write([]byte(respones))
 			continue
@@ -194,19 +262,18 @@ outer:
 		//if the query is not select we use exec 
 		queryResult , err := userDb.Exec(query)
 		if err != nil {
-			connection.Write([]byte("Error while executing query\n" + err.Error()))
+			connection.Write([]byte("Error while executing query\n" + err.Error() + "\n"))
 			continue
 		}
 		EffectedRows , err := queryResult.RowsAffected()
 		if err != nil {
-			connection.Write([]byte("Error while getting effected rows\n" + err.Error()))
+			connection.Write([]byte("Error while getting effected rows\n" + err.Error() + "\n"))
 			continue
 		}
 		respones := fmt.Sprintf("success\nEffected Rows : %d\n" , EffectedRows)
 		connection.Write([]byte(respones))
 
 	}
-
 }
 
 /**
@@ -244,7 +311,7 @@ func init() {
 
 	currentdir , err = os.Getwd()
 	checkFetal(err)
-	dbpath = currentdir + "/db/"
+	dbpath = currentdir + "/DB/"
 }
 
 func main() {
