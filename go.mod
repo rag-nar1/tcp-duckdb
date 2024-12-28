@@ -13,6 +13,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/marcboeker/go-duckdb v1.8.3 // indirect
+	github.com/mattn/go-sqlite3 v1.14.24 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect

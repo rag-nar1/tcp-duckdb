@@ -12,21 +12,36 @@ import (
 	"database/sql"
 	_ "github.com/lib/pq"
 	_ "github.com/marcboeker/go-duckdb"
+	"github.com/mattn/go-sqlite3"
 )
 
 
 var (
 	currentdir string
 	dbpath string
-	db *sql.DB
+
+	// postgresql
+	Postgresdb *sql.DB
 	connectionString string = "postgres://%s:%s@%s:%s/%s?sslmode=disable" // user , password , hostname , port , database
 	PostgresHost string
 	PostgresPort string
 	PostgresUser string
 	PostgresPass string
 	PostgresDbName string
+
 	ServerHost = "localhost"
 	ServerPort = "2003"
+
+	// sqlite3 
+	sqlitedb *sql.DB
+
+	AdminNextID int
+)
+
+const (
+
+	serverdb = "main.sqlite3"
+
 )
 
 func checkFetal(err error) {
@@ -127,26 +142,44 @@ func HandleAdmin(connection net.Conn) {
 			continue
 		}
 		
-		if strings.HasPrefix(command , "EXIT") {
+		if strings.HasPrefix(command , "EXIT") { // exit the admin mode and close the connection
 			connection.Write([]byte("success\n"))
 			return
 		}
 
-		if strings.HasPrefix(command , "CREATE") {
-			request := strings.Split(command , " ")
-			if len(request) != 2 {
+		if strings.HasPrefix(command , "CREATE") { // create a new database or admin user
+
+			command = strings.TrimPrefix(command , "CREATE ")
+			if !strings.HasPrefix(command , "DATABASE") && !strings.HasPrefix(command , "ADMIN") && !strings.HasPrefix(command , "USER"){
 				connection.Write([]byte("Error invalid request\n"))
 				continue
 			}
 
-			dbname := request[1]
-			// create the database file in the db directory
-			_ , err := sql.Open("duckdb" , dbpath + dbname + ".db")
-			if err != nil {
-				connection.Write([]byte("Error while creating database\n" + err.Error() + "\n"))
+			if strings.HasPrefix(command , "ADMIN") { // create a new server admin
+				args := strings.Split(command , " ")
+				if len(args) != 3 {
+					connection.Write([]byte("Error invalid request\n"))
+					continue
+				}
+
+				NewAdmin , Password := args[1] , args[2]
+
+				_ , err = sqlitedb.Exec("INSERT INTO admins VALUES(%d , '%s' , '%s')" , AdminNextID , NewAdmin , Password)
+				if err != nil {
+					connection.Write([]byte("Error while inserting \n" + err.Error() + "\n"))
+					continue
+				}
+				AdminNextID ++
+				connection.Write([]byte("success\n"))
 				continue
 			}
-			connection.Write([]byte("success\n"))
+
+			
+
+
+
+
+
 			continue
 		}
 
@@ -207,11 +240,34 @@ func HandleConnection(connection net.Conn) {
 		}
 
 		if strings.HasPrefix(message , "ADMIN") {
-			ADMINPASS := strings.Split(message , " ")[1]
-			if ADMINPASS != os.Getenv("ADMIN_PASS") {
-				connection.Write([]byte("Error wrong admin password\n"))
+			// check if the password is correct for the admin
+			request := strings.Split(message , " ")
+			if len(request) != 3 {
+				connection.Write([]byte("Error invalid request\n"))
 				continue
 			}
+
+			Username , Password = request[1] , request[2]
+			adminAuth , err := sqlitedb.Query("SELECT password FROM admin WHERE username LIKE '%s'" , Username)
+			if err != nil {
+				connection.Write([]byte("Error while executing query admin\n" + err.Error() + "\n"))
+				continue
+			}
+
+			var correctPass *string = new(string)
+			adminAuth.Next()
+			err = adminAuth.Scan(correctPass)
+			if err != nil {
+				connection.Write([]byte("Error invalid Username\n" + err.Error() + "\n"))
+				continue
+			}
+
+			//check the password
+			if *correctPass != Password {
+				connection.Write([]byte("Error wrong password\n"))
+				continue
+			}
+			
 			connection.Write([]byte("success\n"))
 			HandleAdmin(connection)
 			return
@@ -248,7 +304,7 @@ func HandleConnection(connection net.Conn) {
 
 			UID = *uid
 
-			dbAuth , err := db.Query(fmt.Sprintf("SELECT id FROM databases WHERE name LIKE '%s' AND userid = %d" , Database , UID))
+			dbAuth , err := db.Query(fmt.Sprintf("SELECT dbid FROM can_access join database using(dbid) where dbname like '%s' and userid = '%d'" , Database , UID))
 			if err != nil {
 				connection.Write([]byte("Error while executing query db\n" + err.Error() + "\n"))
 				continue
@@ -263,6 +319,7 @@ func HandleConnection(connection net.Conn) {
 			}
 
 			DBID = *dbid
+
 			authenticated = true
 
 			connection.Write([]byte("success\n"))
@@ -276,22 +333,8 @@ func HandleConnection(connection net.Conn) {
 
 		query := strings.TrimPrefix(message , "QUERY ")
 
-		// get the databse name 
-		dbnameResult , err := db.Query(fmt.Sprintf("SELECT name FROM databases WHERE id = %d" , DBID))
-		if err != nil {
-			connection.Write([]byte("Error while executing query db\n" + err.Error() + "\n"))
-			continue
-		}
 
-		var dbname *string = new(string)
-		dbnameResult.Next()
-		err = dbnameResult.Scan(dbname)
-		if err != nil {
-			connection.Write([]byte("Error while scanning db name\n" + err.Error() + "\n"))
-			continue
-		}
-
-		userDbPath := dbpath + strconv.Itoa(DBID) + "_" + *dbname + ".db"
+		userDbPath := dbpath + strconv.Itoa(DBID) + "_" + Database + ".db"
 		userDb , err := sql.Open("duckdb" , userDbPath)
 		if err != nil {
 			connection.Write([]byte("Error while connecting to database\n" + err.Error() + "\n"))
@@ -355,7 +398,10 @@ func Start(listner net.Listener) error {
 
 
 func init() {
+	// load the env variables
 	err := godotenv.Load()
+	checkFetal(err)
+	// connect to the postgresql
 	PostgresHost = os.Getenv("PostgresHost")
 	PostgresPort = os.Getenv("PostgresPort")
 	PostgresUser = os.Getenv("PostgresUser")
@@ -363,17 +409,43 @@ func init() {
 	PostgresDbName = os.Getenv("PostgresDbName")
 	checkFetal(err)
 	connection := fmt.Sprintf(connectionString , PostgresUser , PostgresPass , PostgresHost , PostgresPort , PostgresDbName)
- 	db , err = sql.Open("postgres" , connection)
+	Postgresdb , err = sql.Open("postgres" , connection)
 	checkFetal(err)
 	fmt.Println("connected to postgresql")
 
+	// create the db directory
 	currentdir , err = os.Getwd()
 	checkFetal(err)
 	dbpath = currentdir + "/DB/"
+
+	// register the sqlite3 with extensions
+	sql.Register("sqlite3_with_extensions",
+	&sqlite3.SQLiteDriver{
+		Extensions: []string{
+			"sqlite3_mod_regexp",
+		},
+	})
+
+	// create the main database
+	sqlitedb , err = sql.Open("sqlite3_with_extensions" , dbpath + serverdb)
+	checkFetal(err)
+	fmt.Println("connected to sqlite3")
+
+	admincnt , err := sqlitedb.Query("SELECT count(*) FROM admins;")
+	checkFetal(err)
+
+	var ADMINCNT *int
+	admincnt.Next()
+	
+	err = admincnt.Scan(ADMINCNT)
+	checkFetal(err)
+	AdminNextID = *ADMINCNT + 1
+
 }
 
 func main() {
-	defer db.Close()
+	defer Postgresdb.Close()
+	defer sqlitedb.Close()
 	listener , err := CreateListener(ServerHost + ":" + ServerPort)
 	checkFetal(err)
 	err = Start(listener)
