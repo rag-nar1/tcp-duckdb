@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"strings"
@@ -12,8 +11,14 @@ import (
 	_ "github.com/lib/pq"
 	_ "github.com/marcboeker/go-duckdb"
 	"github.com/mattn/go-sqlite3"
+	"sync"
+	"time"
 )
 
+type SQLitedb struct {
+	db *sql.DB
+	latch sync.Mutex
+}
 
 var (
 	currentdir string
@@ -32,7 +37,7 @@ var (
 	ServerPort = "2003"
 
 	// sqlite3 
-	sqlitedb *sql.DB
+	sqlitedb *SQLitedb
 
 	NextID map[string]int
 	ServerDbTables = []string {
@@ -52,86 +57,21 @@ const (
 
 )
 
-func checkFetal(err error) {
+
+func NewSqliteDB (dbpath string) (*SQLitedb , error) {
+	db , err := sql.Open("sqlite3" , dbpath + "?_journal=WAL&_busy_timeout=5000")
 	if err != nil {
-		log.Fatal(err)
-	}
+        return nil, fmt.Errorf("failed to open database: %v", err)
+    }
+
+	// Configure connection pool
+	db.SetMaxOpenConns(1)             // Limit to 1 connection to prevent "database is locked" errors
+	db.SetMaxIdleConns(1)
+	db.SetConnMaxLifetime(time.Hour)
+	return &SQLitedb{
+        db: db,
+    }, nil
 }
-func checkLog(err error) {
-	if err != nil {
-		log.Println(err)
-	}
-}
-
-
-/**
- * Function to create a tcp listener
- * @pram -> address string : address to listen to 
- * @return -> net.Listener , error
-*/
-func CreateListener(address string) (net.Listener , error) { 
-	listner , err := net.Listen("tcp", address)
-	if err != nil {
-		return nil , err
-	}
-	return listner , nil
-}
-
-
-func ProccessQuery(queryResult *sql.Rows) (string , error) {
-	columns , err := queryResult.Columns()
-	columnsTypes , err := queryResult.ColumnTypes()
-	if err != nil {
-		return "" , err
-	}
-
-	var respones string = ""
-	for _ , column := range columns {
-		respones += column + " , "
-	}
-	respones = strings.TrimSuffix(respones , " , ")
-	respones += "\n"
-
-	for queryResult.Next() {
-		rowData := make([]interface{} , len(columns))
-		rowDataPtr := make([]interface{} , len(columns))
-		for i := range rowData {
-			rowDataPtr[i] = &rowData[i]
-		}
-
-		err = queryResult.Scan(rowDataPtr...)
-
-		values := make(map[string]interface{})
-		for i , column := range columns {
-			values[column] = rowData[i]
-		}
-
-		for i , column := range columns {
-			// interprate the value based on the type
-			switch columnsTypes[i].DatabaseTypeName() {
-				case "INT":
-					respones += fmt.Sprintf("%d" , values[column].(int))
-				case "BIGINT":
-					respones += fmt.Sprintf("%d" , values[column].(int64))
-				case "FLOAT":
-					respones += fmt.Sprintf("%f" , values[column].(float64))
-				case "VARCHAR":
-					respones += fmt.Sprintf("%s" , values[column].(string))
-				case "BOOL":
-					respones += fmt.Sprintf("%t" , values[column].(bool))
-				default:
-					respones += fmt.Sprintf("%v" , values[column])
-			}
-			respones += " , "
-		}
-		respones = strings.TrimSuffix(respones , " , ")
-		respones += "\n"
-	}
-	return respones , nil
-}
-
-
-
 
 
 /**
@@ -175,7 +115,7 @@ func HandleConnection(connection net.Conn) {
 			}
 
 			Username , Password := request[1] , request[2]
-			PasswordPtr , err := SELECT[string](sqlitedb , "admin" , "password" , "username LIKE " + addSingleQuete(Username))
+			PasswordPtr , err := SELECT[string](sqlitedb , "admins" , "password" , "username LIKE " + addSingleQuete(Username))
 			if err != nil {
 				connection.Write([]byte("Error while executing query admin\n" + err.Error() + "\n"))
 				continue
@@ -246,7 +186,7 @@ func init() {
 	})
 
 	// create the main database
-	sqlitedb , err = sql.Open("sqlite3" , dbpath + serverdb)
+	sqlitedb , err = NewSqliteDB(dbpath + serverdb)
 	checkFetal(err)
 	fmt.Println("connected to sqlite3")
 
@@ -265,7 +205,6 @@ func init() {
 
 func main() {
 	defer Postgresdb.Close()
-	defer sqlitedb.Close()
 	listener , err := CreateListener(ServerHost + ":" + ServerPort)
 	checkFetal(err)
 	err = Start(listener)
