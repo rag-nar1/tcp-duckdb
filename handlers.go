@@ -2,9 +2,10 @@ package main
 
 import (
 	"bufio"
-	"strconv"
+	"database/sql"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -34,7 +35,7 @@ func HandleAdmin(connection net.Conn) {
 		if strings.HasPrefix(command , "CREATE") { // create a new database or admin user
 
 			command = strings.TrimPrefix(command , "CREATE ")
-			if !strings.HasPrefix(command , "DATABASE") && !strings.HasPrefix(command , "ADMIN") && !strings.HasPrefix(command , "USER"){
+			if !strings.HasPrefix(command , "DATABASE") && !strings.HasPrefix(command , "ADMIN") && !strings.HasPrefix(command , "USER") && !strings.HasPrefix(command , "TABLE"){
 				connection.Write([]byte("Error invalid request\n"))
 				continue
 			}
@@ -96,16 +97,39 @@ func HandleAdmin(connection net.Conn) {
 					continue
 				}
 				
+				
+				_ , err = sql.Open("duckdb" , dbpath + strconv.Itoa(UID) + "_" + NewDB) // creates the db file
+				if err != nil {
+					connection.Write([]byte("Error while Creating file \n" + err.Error() + "\n"))
+					// TODO: Delete the entry
+					continue
+				}
+
 				NextID["database"] ++
 				connection.Write([]byte("success\n"))
 				continue
 			}
 
+			tableName , dbName := args[1] , args[2]
+			
+			DataPtr , err := SELECT[int](sqlitedb , "database" , "dbid" , "dbname like " + dbName)
 
+			if err != nil {
+				connection.Write([]byte("Error while inserting \n" + err.Error() + "\n"))
+				continue
+			}
 
+			DBID := *DataPtr
+			TableID := NextID["tables"]
+			err = INSERT(sqlitedb , "tables" , strconv.Itoa(TableID) , addSingleQuete(tableName) , strconv.Itoa(DBID))
 
+			if err != nil {
+				connection.Write([]byte("Error while inserting \n" + err.Error() + "\n"))
+				continue
+			}
 
-
+			NextID["tables"] ++
+			connection.Write([]byte("success\n"))
 			continue
 		}
 
