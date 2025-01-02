@@ -4,7 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"strconv"
 	"context"
+	"database/sql"
+
 )
 
 func EXEC (db *SQLitedb , Query string) (error) {
@@ -74,3 +77,69 @@ func SELECT [T any] (db *SQLitedb , Table string , Columns string , Condition st
 	return result , nil
 }
 
+func CreateAdmin (db *SQLitedb , NewAdmin string , Password string) (error) {
+	err := INSERT(sqlitedb , "admins" , strconv.Itoa(NextID["admins"]) ,NewAdmin , Password)
+	if err != nil {
+		return err
+	}
+	NextID["admins"] ++
+	return nil
+}
+
+func CreateUser(db *SQLitedb , NewUser string , Password string) (error) {
+	err := INSERT(sqlitedb , "users" , strconv.Itoa(NextID["users"]) , NewUser , Password)
+	if err != nil {
+		return err
+	}
+	NextID["users"] ++
+	return nil
+}
+
+func CreateDB (db *SQLitedb , NewDB string , SuperUser string) (error) {
+	DataPtr , err := SELECT[int](sqlitedb , "users" , "userid" , "username like " + SuperUser)
+	if err != nil {
+		return err
+	}
+
+	UID := *DataPtr
+	DBID := NextID["database"]
+	_ , err = sql.Open("duckdb" , dbpath + strconv.Itoa(UID) + "_" + NewDB) // creates the db file
+	if err != nil {
+		return err
+	}
+
+	err = INSERT(sqlitedb , "database" , strconv.Itoa(DBID) , NewDB , strconv.Itoa(UID))
+
+	if err != nil {
+		return err
+	}
+
+	err = INSERT(sqlitedb , "useraccess" ,  strconv.Itoa(DBID) , strconv.Itoa(UID))
+	if err != nil {
+		return err
+	}
+	
+	
+	NextID["database"] ++
+	return nil
+
+}
+
+func CreateTable(db *SQLitedb , TableName string , DBName string) (error) {
+	DataPtr , err := SELECT[int](sqlitedb , "database" , "dbid" , "dbname like " + DBName)
+
+	if err != nil {
+		return err
+	}
+
+	DBID := *DataPtr
+	TableID := NextID["tables"]
+	err = INSERT(sqlitedb , "tables" , strconv.Itoa(TableID) , addSingleQuete(TableName) , strconv.Itoa(DBID))
+
+	if err != nil {
+		return err
+	}
+
+	NextID["tables"] ++
+	return nil
+}

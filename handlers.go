@@ -2,10 +2,8 @@ package main
 
 import (
 	"bufio"
-	"database/sql"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -49,12 +47,11 @@ func HandleAdmin(connection net.Conn) {
 			if strings.HasPrefix(command , "ADMIN") { // create a new server admin
 				
 				NewAdmin , Password := addSingleQuete(args[1]) , addSingleQuete(args[2])
-				err := INSERT(sqlitedb , "admins" , strconv.Itoa(NextID["admins"]) ,NewAdmin , Password)
+				err := CreateAdmin(sqlitedb , NewAdmin , Password)
 				if err != nil {
 					connection.Write([]byte("Error while inserting \n" + err.Error() + "\n"))
 					continue
 				}
-				NextID["admins"] ++
 				connection.Write([]byte("success\n"))
 				continue
 			}
@@ -62,13 +59,11 @@ func HandleAdmin(connection net.Conn) {
 			if strings.HasPrefix(command , "USER") {
 
 				NewUser , Password := addSingleQuete(args[1]) , addSingleQuete(args[2])
-
-				err := INSERT(sqlitedb , "users" , strconv.Itoa(NextID["users"]) , NewUser , Password)
+				err := CreateUser(sqlitedb , NewUser , Password)
 				if err != nil {
 					connection.Write([]byte("Error while inserting \n" + err.Error() + "\n"))
 					continue
 				}
-				NextID["users"] ++
 				connection.Write([]byte("success\n"))
 				continue
 			}
@@ -76,59 +71,23 @@ func HandleAdmin(connection net.Conn) {
 			if strings.HasPrefix(command , "DATABASE") {
 				NewDB , SuperUser := addSingleQuete(args[1]) , addSingleQuete(args[2])
 
-				DataPtr , err := SELECT[int](sqlitedb , "users" , "userid" , "username like " + SuperUser)
+				err := CreateDB(sqlitedb , NewDB , SuperUser)
 				if err != nil {
 					connection.Write([]byte("Error while inserting \n" + err.Error() + "\n"))
 					continue
 				}
 
-				UID := *DataPtr
-				DBID := NextID["database"]
-				err = INSERT(sqlitedb , "database" , strconv.Itoa(DBID) , NewDB , strconv.Itoa(UID))
-
-				if err != nil {
-					connection.Write([]byte("Error while inserting \n" + err.Error() + "\n"))
-					continue
-				}
-
-				err = INSERT(sqlitedb , "useraccess" ,  strconv.Itoa(DBID) , strconv.Itoa(UID))
-				if err != nil {
-					connection.Write([]byte("Error while inserting \n" + err.Error() + "\n"))
-					continue
-				}
-				
-				
-				_ , err = sql.Open("duckdb" , dbpath + strconv.Itoa(UID) + "_" + NewDB) // creates the db file
-				if err != nil {
-					connection.Write([]byte("Error while Creating file \n" + err.Error() + "\n"))
-					// TODO: Delete the entry
-					continue
-				}
-
-				NextID["database"] ++
 				connection.Write([]byte("success\n"))
 				continue
 			}
-
+			// create a new table
 			tableName , dbName := args[1] , args[2]
 			
-			DataPtr , err := SELECT[int](sqlitedb , "database" , "dbid" , "dbname like " + dbName)
-
+			err := CreateTable(sqlitedb , tableName , dbName)
 			if err != nil {
 				connection.Write([]byte("Error while inserting \n" + err.Error() + "\n"))
 				continue
 			}
-
-			DBID := *DataPtr
-			TableID := NextID["tables"]
-			err = INSERT(sqlitedb , "tables" , strconv.Itoa(TableID) , addSingleQuete(tableName) , strconv.Itoa(DBID))
-
-			if err != nil {
-				connection.Write([]byte("Error while inserting \n" + err.Error() + "\n"))
-				continue
-			}
-
-			NextID["tables"] ++
 			connection.Write([]byte("success\n"))
 			continue
 		}
