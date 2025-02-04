@@ -1,6 +1,0 @@
-duckdb
-DB
-.env
-*.sql
-.vscode
-build
