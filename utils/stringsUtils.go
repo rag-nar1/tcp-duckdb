@@ -10,3 +10,9 @@ func Trim(s string) string {
 	}
 	return s
 }
+
+func TrimList(list []string) {
+	for i := 0; i < len(list); i ++ {
+		list[i] = Trim(list[i])
+	}
+}

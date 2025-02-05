@@ -14,7 +14,9 @@ import (
 
 )
 var preparedStmtStrings = [][]string{
-	{"login", "SELECT userid FROM user WHERE username LIKE ? AND password LIKE ? ;"},
+	{"login", "SELECT userid , usertype FROM user WHERE username LIKE ? AND password LIKE ? ;"},
+	{"SelectDB", "SELECT dbid FROM DB WHERE dbname LIKE ? ;"},
+	{"CreateDB", "INSERT INTO DB(dbname) VALUES(?);"},
 }
 type PreparedStmts map[string] *sql.Stmt
 
@@ -39,6 +41,7 @@ func (s *Server) prepareStmt() {
 		s.dbstmt[stmt[0]] = tmpStmt
 	}
 }
+var server *Server
 
 // create the only superuser user if not already created "duck" with an initial password "duck"  
 func (s *Server) CreateSuper() {
@@ -52,8 +55,8 @@ func (s *Server) CreateSuper() {
 	}
 }
 
-func HandleConnection(conn *net.Conn , dbstmt PreparedStmts) {
-	defer (*conn).Close()	
+func HandleConnection(conn *net.Conn) {
+	defer (*conn).Close()
 	log.Println("Serving " + (*conn).RemoteAddr().String())
 	// read login request
 	route := make([]byte, 1024)
@@ -64,42 +67,42 @@ func HandleConnection(conn *net.Conn , dbstmt PreparedStmts) {
 	}
 	// check for a valid request
 	request := strings.Split(string(route[0 : n]) , " ")
-	var UserName , password string
+	var UserName , password , privilege string
 	var UID int
-	if request[0] != "Login" || len(request) != 3 {
+	if request[0] != "login" || len(request) != 3 {
 		(*conn).Write([]byte("ERROR: BAD request\n"))
 		return
 	}
 	// validate the username and password
 	UserName, password = utils.Trim(request[1]), utils.Trim(request[2]) 
-	UID , err = LoginHandler(UserName, password, dbstmt["login"])
+	UID, privilege, err = LoginHandler(UserName, password, server.dbstmt["login"])
 	if err != nil {
 		(*conn).Write([]byte("Unauthorized\n"))
 		log.Print(err)
 		return	
 	}
-
-	log.Printf("USER SERVED %d" , UID)
+	(*conn).Write([]byte("success\n"))
+	DBHandler(UID, UserName, privilege, conn)
 }
 
 	
-func NewServer() (*Server , error){
-	dbconn , err := sql.Open("sqlite3",os.Getenv("DBdir"))
+func NewServer() (error){
+	dbconn , err := sql.Open("sqlite3",os.Getenv("DBdir") + os.Getenv("ServerDbFile"))
 	if err != nil {
-		return nil , err
+		return err
 	}
 	err = dbconn.Ping()
 	if err != nil {
-		return nil , err
+		return err
 	}
 
-	server := &Server{
+	server = &Server{
 		Sqlitedb: dbconn,
 		Port: os.Getenv("ServerPort"),
 		dbstmt: make(PreparedStmts),
 	}
 	server.Address = os.Getenv("ServerAddr") + ":" + server.Port
-	return server , nil
+	return nil
 }
 
 func init() {
@@ -107,16 +110,16 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-}
 
-func main() {
-
-	server , err := NewServer()
-	if err != nil{
+	err = NewServer()
+	if err != nil {
 		log.Fatal(err)
 	}
 	server.prepareStmt()
 	server.CreateSuper()
+}
+
+func main() {
 	// start listing to tcp connections
 	listener , err := net.Listen("tcp", server.Address)
 	if err != nil {
@@ -131,7 +134,7 @@ func main() {
 			log.Fatal(err)
 		}
 		// starts a go routin to handle every connection
-		go HandleConnection(&conn, server.dbstmt)
+		go HandleConnection(&conn)
 
 		defer conn.Close()
 	}
