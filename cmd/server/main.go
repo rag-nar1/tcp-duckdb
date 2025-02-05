@@ -15,8 +15,10 @@ import (
 )
 var preparedStmtStrings = [][]string{
 	{"login", "SELECT userid , usertype FROM user WHERE username LIKE ? AND password LIKE ? ;"},
+	{"CreateUser", "INSERT INTO user(username, password, usertype) VALUES(?, ?, ?);"},
 	{"SelectDB", "SELECT dbid FROM DB WHERE dbname LIKE ? ;"},
 	{"CreateDB", "INSERT INTO DB(dbname) VALUES(?);"},
+	{"GrantDB", "INSERT INTO dbprivilege(dbid, userid, privilegetype) VALUES(?, ?, ?);"},
 }
 type PreparedStmts map[string] *sql.Stmt
 

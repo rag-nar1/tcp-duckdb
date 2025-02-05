@@ -28,7 +28,7 @@ func DBHandler(UID int, UserName, privilege string, conn *net.Conn) {
 	for {
 		n , err := (*conn).Read(rawreq)
 		if err != nil {
-			(*conn).Write([]byte("ERROR: while reading"))
+			(*conn).Write([]byte("ERROR: while reading\n"))
 			log.Println("ERROR" , err)
 			return
 		}
@@ -68,16 +68,21 @@ func DBHandler(UID int, UserName, privilege string, conn *net.Conn) {
 		}
 
 		if req[1] == "database" {
-			CreateDB(UID, UserName, privilege, req[2], conn)
+			CreateDB(req[2], conn)
 			continue
 		}
 
-		// CreateUser(UID, UserName, privilege, NewUser, dbname, conn) // TODO
+		if len(req) != 5 {
+			(*conn).Write([]byte("ERROR: BAD request\n"))
+			continue
+		}
+
+		CreateUser(req[2], req[3], req[4], conn) // TODO
 	}
 	
 }
 
-func CreateDB(UID int, UserName, privilege, dbname string, conn *net.Conn) {
+func CreateDB(dbname string, conn *net.Conn) {
 	var DBID int
 	err := server.dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID)
 	if err == nil {
@@ -93,12 +98,57 @@ func CreateDB(UID int, UserName, privilege, dbname string, conn *net.Conn) {
 
 	_ , err = server.dbstmt["CreateDB"].Exec(dbname)
 	if err != nil {
-		(*conn).Write([]byte("ERROR: could not create databse"))
+		(*conn).Write([]byte("ERROR: could not create databse\n"))
 
 		err = os.Remove(os.Getenv("DBdir") + "/users/" + dbname + ".db")
 		if err != nil {
 			log.Fatal(err)
 		}
+		return
+	}
+	(*conn).Write([]byte("success\n"))
+}
+
+func CreateUser(dbname, NewUser, password string, conn *net.Conn) {
+	var DBID, UID int
+	err := server.dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID)
+	if err != nil {
+		(*conn).Write([]byte("database: " + dbname + " does not exists\n"))
+		return
+	}
+
+	//start transaction
+	transaction, err := server.Sqlitedb.Begin()
+	defer transaction.Rollback()
+
+	// create user
+	_, err = transaction.Stmt(server.dbstmt["CreateUser"]).Exec(NewUser, password , "norm")
+
+	if err != nil {
+		(*conn).Write([]byte("user already exists\n"))
+		log.Println(err)
+		return
+	}
+
+	var privilege string
+	err = transaction.Stmt(server.dbstmt["login"]).QueryRow(NewUser , password).Scan(&UID , &privilege)
+	if err != nil {
+		(*conn).Write([]byte("server error\n"))
+		log.Println(err)
+		return
+	}
+
+	_, err = transaction.Stmt(server.dbstmt["GrantDB"]).Exec(DBID, UID, "read")
+	if err != nil {
+		(*conn).Write([]byte("server error\n"))
+		log.Println(err)
+		return
+	}
+	
+	err = transaction.Commit()
+	if err != nil {
+		(*conn).Write([]byte("server error\n"))
+		log.Println(err)
 		return
 	}
 	(*conn).Write([]byte("success\n"))
