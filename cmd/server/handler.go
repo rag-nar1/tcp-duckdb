@@ -48,7 +48,7 @@ func DBHandler(UID int, UserName, privilege string, conn *net.Conn) {
 		}
 
 		if req[0] == "connect" {
-			// DbConnectionHandler(UID, UserName, privilege, dbname, conn) // TODO
+			DbConnectionHandler(UID, UserName, privilege, req[1], conn) // TODO
 			continue
 		}
 
@@ -152,4 +152,40 @@ func CreateUser(dbname, NewUser, password string, conn *net.Conn) {
 		return
 	}
 	(*conn).Write([]byte("success\n"))
+}
+
+func DbConnectionHandler(UID int, UserName, privilege, dbname string, conn *net.Conn) {
+	// check for db existense
+	var DBID int
+	err := server.dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID)
+	if err != nil {
+		(*conn).Write([]byte("database: " + dbname + " does not exists\n"))
+		return
+	}
+
+	// check for authrization
+	var access int 
+	err = server.dbstmt["CheckAccess"].QueryRow(UID , DBID).Scan(&access)
+	if err != nil {
+		(*conn).Write([]byte("server error\n"))
+		log.Println(err)
+		return
+	}
+
+	if access == 0 {
+		(*conn).Write([]byte("user: " + UserName + " does not have access over database: " + dbname))
+		return
+	}
+
+	buffer := make([]byte, 4096)
+	for {
+		n , err := (*conn).Read(buffer)
+		if err != nil {
+			(*conn).Write([]byte("ERROR: while reading\n"))
+			log.Println("ERROR" , err)
+			return
+		}
+		// handle queries
+	}
+
 }

@@ -19,6 +19,7 @@ var preparedStmtStrings = [][]string{
 	{"SelectDB", "SELECT dbid FROM DB WHERE dbname LIKE ? ;"},
 	{"CreateDB", "INSERT INTO DB(dbname) VALUES(?);"},
 	{"GrantDB", "INSERT INTO dbprivilege(dbid, userid, privilegetype) VALUES(?, ?, ?);"},
+	{"CheckAcces", "SELECT COUNT(*) FROM dbprivilege WHERE userid == ? AND dbid == ?"},
 }
 type PreparedStmts map[string] *sql.Stmt
 
