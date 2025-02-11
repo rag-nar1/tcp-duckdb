@@ -48,7 +48,8 @@ var server *Server
 
 // create the only superuser user if not already created "duck" with an initial password "duck"  
 func (s *Server) CreateSuper() {
-	res , err := s.Sqlitedb.Exec("INSERT OR IGNORE INTO user(username, password, usertype) values('duck', 'duck', 'super')")
+	hashedPassword := utils.Hash("duck")
+	res , err := s.Sqlitedb.Exec("INSERT OR IGNORE INTO user(username, password, usertype) values('duck', ?, 'super')",hashedPassword)
 	if err != nil {
 		log.Fatal(err)
 	}

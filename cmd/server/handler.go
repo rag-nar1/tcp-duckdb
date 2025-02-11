@@ -14,7 +14,7 @@ func LoginHandler(UserName, password string, dbstmt *sql.Stmt) (int , string , e
 	
 	var UID int
 	var privilige string
-	err := dbstmt.QueryRow(UserName , password).Scan(&UID, &privilige)
+	err := dbstmt.QueryRow(UserName , utils.Hash(password)).Scan(&UID, &privilige)
 	if err != nil {
 		return -1 , "", err
 	}
@@ -122,7 +122,7 @@ func CreateUser(dbname, NewUser, password string, conn *net.Conn) {
 	defer transaction.Rollback()
 
 	// create user
-	_, err = transaction.Stmt(server.dbstmt["CreateUser"]).Exec(NewUser, password , "norm")
+	_, err = transaction.Stmt(server.dbstmt["CreateUser"]).Exec(NewUser, utils.Hash(password) , "norm")
 
 	if err != nil {
 		(*conn).Write([]byte("user already exists\n"))
@@ -131,7 +131,7 @@ func CreateUser(dbname, NewUser, password string, conn *net.Conn) {
 	}
 
 	var privilege string
-	err = transaction.Stmt(server.dbstmt["login"]).QueryRow(NewUser , password).Scan(&UID , &privilege)
+	err = transaction.Stmt(server.dbstmt["login"]).QueryRow(NewUser , utils.Hash(password)).Scan(&UID , &privilege)
 	if err != nil {
 		(*conn).Write([]byte("server error\n"))
 		log.Println(err)
@@ -179,7 +179,7 @@ func DbConnectionHandler(UID int, UserName, privilege, dbname string, conn *net.
 
 	buffer := make([]byte, 4096)
 	for {
-		n , err := (*conn).Read(buffer)
+		_ , err := (*conn).Read(buffer)
 		if err != nil {
 			(*conn).Write([]byte("ERROR: while reading\n"))
 			log.Println("ERROR" , err)
