@@ -48,7 +48,7 @@ func DBHandler(UID int, UserName, privilege string, conn *net.Conn) {
 		}
 
 		if req[0] == "connect" {
-			DbConnectionHandler(UID, UserName, privilege, req[1], conn) // TODO
+			DbConnectionHandler(UID, UserName, privilege, req[1], conn) 
 			continue
 		}
 
@@ -77,7 +77,7 @@ func DBHandler(UID int, UserName, privilege string, conn *net.Conn) {
 			continue
 		}
 
-		CreateUser(req[2], req[3], req[4], conn) // TODO
+		CreateUser(req[2], req[3], req[4], conn) 
 	}
 	
 }
@@ -165,7 +165,7 @@ func DbConnectionHandler(UID int, UserName, privilege, dbname string, conn *net.
 
 	// check for authrization
 	var access int 
-	err = server.dbstmt["CheckAccess"].QueryRow(UID , DBID).Scan(&access)
+	err = server.dbstmt["CheckDbAccess"].QueryRow(UID , DBID).Scan(&access)
 	if err != nil {
 		(*conn).Write([]byte("server error\n"))
 		log.Println(err)
@@ -178,14 +178,35 @@ func DbConnectionHandler(UID int, UserName, privilege, dbname string, conn *net.
 	}
 
 	buffer := make([]byte, 4096)
+
+    _ , err = sql.Open("duckdb" , os.Getenv("DBdir") + "/users/" + dbname + ".db")
+    if err != nil {
+        (*conn).Write([]byte("SERVER ERROR"))
+        log.Println(err)
+        return
+    }
+    (*conn).Write([]byte("success"))
 	for {
-		_ , err := (*conn).Read(buffer)
+		n , err := (*conn).Read(buffer)
 		if err != nil {
 			(*conn).Write([]byte("ERROR: while reading\n"))
 			log.Println("ERROR" , err)
 			return
 		}
-		// handle queries
+
+        query := strings.Split(string(buffer[0:n]) , " ")[0]
+
+        if query != "SELECT" && query != "TRANSACTION" {
+            (*conn).Write([]byte("unsupported Query"))
+            continue
+        }
+
+        if query == "SELECT" {
+            // todo: add selecet query and design the response design
+        }
+        
+        
+        
 	}
 
 }

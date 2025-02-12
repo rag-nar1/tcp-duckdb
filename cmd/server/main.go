@@ -19,7 +19,8 @@ var preparedStmtStrings = [][]string{
 	{"SelectDB", "SELECT dbid FROM DB WHERE dbname LIKE ? ;"},
 	{"CreateDB", "INSERT INTO DB(dbname) VALUES(?);"},
 	{"GrantDB", "INSERT INTO dbprivilege(dbid, userid, privilegetype) VALUES(?, ?, ?);"},
-	{"CheckAcces", "SELECT COUNT(*) FROM dbprivilege WHERE userid == ? AND dbid == ?"},
+	{"CheckDbAccess", "SELECT COUNT(*) FROM dbprivilege WHERE userid == ? AND dbid == ?"},
+	{"CheckTableAccess", "SELECT COUNT(*) FROM tableprivilege WHERE userid == ? AND tableid == ? AND tableprivilege LIKE ?;"},
 }
 type PreparedStmts map[string] *sql.Stmt
 
