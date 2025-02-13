@@ -13,7 +13,35 @@ func SELECT(db *sql.DB, query string) (error) {
 
 }
 
-func CheckReadAccesOverTable(db *sql.DB, stmt *sql.Stmt, query string, UID, DBID int) (bool, error){
+func CheckDDLActions(query string) (bool, error) {
+	DDL := make([]string, 0)
+	// Parse the query into an AST.
+	stmt, err := sqlparser.Parse(query)
+	if err != nil {
+		return false, err
+	}
+	// Walk the AST to catch both top-level and nested statements.
+	err = sqlparser.Walk(func(node sqlparser.SQLNode) (bool, error) {
+		var action string
+		switch n := node.(type) {
+		// Data Definition Language:
+		case *sqlparser.DDL:
+			// n.Action might be "create", "alter", "drop", etc.
+			action = strings.ToUpper(n.Action)
+			DDL = append(DDL, action)
+		default:
+			return true, nil
+		}
+		return true, nil
+	}, stmt)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func CheckAccesOverTable(db *sql.DB, stmt *sql.Stmt, query string, UID, DBID int) (bool, error){
 	// parse the table and map each to type of acction used to access it
 	tables , err := classifySQLTables(query)
 	if err != nil {
@@ -32,6 +60,9 @@ func CheckReadAccesOverTable(db *sql.DB, stmt *sql.Stmt, query string, UID, DBID
 			err = stmt.QueryRow(UID, TID, strings.ToLower(action)).Scan(&cnt)
 			if err != nil {
 				return false, err
+			}
+			if cnt == 0 {
+				return false, nil
 			}
 		}
 	}
@@ -94,11 +125,6 @@ func classifySQLTables(query string) (map[string][]string, error) {
 		case *sqlparser.Delete:
 			action = "DELETE"
 			tables = extractTableNamesFromTableExprs(n.TableExprs)
-		// Data Definition Language:
-		case *sqlparser.DDL:
-			// n.Action might be "create", "alter", "drop", etc.
-			action = strings.ToUpper(n.Action)
-			tables = []string{sqlparser.String(n.Table)}
 		default:
 			return true, nil
 		}

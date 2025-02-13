@@ -1,6 +1,7 @@
 package main
 
 import (
+	"TCP-Duckdb/internal"
 	"TCP-Duckdb/utils"
 	"database/sql"
 	"log"
@@ -244,6 +245,37 @@ func DbConnectionHandler(UID int, UserName, privilege, dbname string, conn *net.
         
         
         
+	}
+
+}
+
+func QueryHandler(query, username, dbname, privilege string, UID, DBID int, conn *net.Conn) {
+	query = strings.ToLower(query)
+	if privilege != "super" {
+		hasaccess , err := internal.CheckAccesOverTable(server.Sqlitedb, server.dbstmt["CheckTableAccess"], query, UID, DBID)
+		if err != nil || !hasaccess{
+			(*conn).Write([]byte("Access denied"))
+			return
+		}
+	} else {
+		hasDDL , err := internal.CheckDDLActions(query)
+		if err != nil || !hasDDL {
+			(*conn).Write([]byte("Access denied"))
+			return
+		}
+	}
+		
+	db , err := sql.Open("duckdb", os.Getenv("DBdir") + "/users/" + dbname + ".db")
+	if err != nil {
+		(*conn).Write([]byte("SERVER ERROR"))
+		log.Println(err)
+		return
+	}
+
+	if strings.HasPrefix(query, "select") {
+
+	} else {
+
 	}
 
 }
