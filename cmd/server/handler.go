@@ -6,7 +6,9 @@ import (
 	"log"
 	"net"
 	"os"
+	"strconv"
 	"strings"
+
 	_ "github.com/marcboeker/go-duckdb"
 )
 
@@ -37,49 +39,84 @@ func DBHandler(UID int, UserName, privilege string, conn *net.Conn) {
 		req := strings.Split(string(rawreq[0:n]) , " ")
 		utils.TrimList(req)
 
-		if req[0] != "connect" && req[0] != "create" {
+		if req[0] != "connect" && req[0] != "create" && req[0] != "grant" && req[0] != "migrate" {
 			(*conn).Write([]byte("ERROR: BAD request\n"))
 			continue
 		}
-
-		if req[0] == "connect" && len(req) != 2 {
-			(*conn).Write([]byte("ERROR: BAD request\n"))
-			continue
-		}
-
+		
 		if req[0] == "connect" {
+			if len(req) != 2 {
+				(*conn).Write([]byte("ERROR: BAD request\n"))
+				continue
+			}
 			DbConnectionHandler(UID, UserName, privilege, req[1], conn) 
 			continue
 		}
 
-		if req[0] == "create" && privilege != "super" {
-			(*conn).Write([]byte("Unauthorized\n"))
+		if req[0] == "create" {
+			CreatHandler(privilege, req[1:], conn)
 			continue
 		}
 
-		if req[1] != "database" && req[1] != "user" {
-			(*conn).Write([]byte("ERROR: BAD request\n"))
+		if req[1] == "grant" {
+			GrantHandler(privilege, req[1:], conn)
 			continue
 		}
 
-		if req[1] == "database" && len(req) != 3 {
-			(*conn).Write([]byte("ERROR: BAD request\n"))
-			continue
-		}
+		MigrateHandler()
 
-		if req[1] == "database" {
-			CreateDB(req[2], conn)
-			continue
-		}
-
-		if len(req) != 5 {
-			(*conn).Write([]byte("ERROR: BAD request\n"))
-			continue
-		}
-
-		CreateUser(req[2], req[3], req[4], conn) 
 	}
 	
+}
+
+// create database [dbname],
+// create user [dbname] [username] [password]
+func CreatHandler(privilege string, req []string, conn *net.Conn) {
+	if privilege != "super" {
+		(*conn).Write([]byte("Unauthorized\n"))
+		return
+	}
+
+	if (req[0] != "database" && req[0] != "user") || (req[0] == "database" && len(req) != 2) {
+		(*conn).Write([]byte("ERROR: BAD request\n"))
+		return
+	}
+
+	if req[1] == "database" {
+		CreateDB(req[2], conn)
+		return
+	}
+
+	if len(req) != 4 {
+		(*conn).Write([]byte("ERROR: BAD request\n"))
+		return
+	}
+
+	CreateUser(req[2], req[3], req[4], conn) 
+}
+// grant database [dbname] [username] [accesstype] ,
+// grant table [dbname] [tablename] [username] [accesstype] 
+func GrantHandler(privilege string, req []string, conn *net.Conn) { 
+	if privilege != "super" {
+		(*conn).Write([]byte("Unauthorized\n"))
+		return
+	}
+
+	if (req[0] != "database" && req[0] != "user") || (req[0] == "database" && len(req) != 4) || (req[0] == "table" && len(req) != 5) {
+		(*conn).Write([]byte("ERROR: BAD request\n"))
+		return
+	}
+
+	if req[0] == "database" {
+		GrantDB(req[1], req[2], req[3], conn)
+		return
+	}
+
+	GrantTable(req[1], req[2], req[3], req[4], conn)
+}
+
+func MigrateHandler() { // todo
+
 }
 
 func CreateDB(dbname string, conn *net.Conn) {
@@ -209,4 +246,75 @@ func DbConnectionHandler(UID int, UserName, privilege, dbname string, conn *net.
         
 	}
 
+}
+
+func GrantDB(dbname, username, accesstype string, conn *net.Conn) {
+	accesstype = strings.ToLower(accesstype)
+	// check for DB access
+	if accesstype != "read" && accesstype != "write" {
+		(*conn).Write([]byte("unsupported Access"))
+		return
+	}
+	// get DBID , UID
+	var DBID, UID int
+	err := server.dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID)
+	if err != nil {
+		(*conn).Write([]byte("database: " + dbname + " does not exists\n"))
+		return
+	}
+
+	err = server.dbstmt["SelectUser"].QueryRow(username).Scan(&UID)
+	if err != nil {
+		(*conn).Write([]byte("user: " + username + " does not exists\n"))
+		return
+	}
+
+	// grant access
+
+	_, err = server.dbstmt["GrantDB"].Exec(DBID, UID, accesstype)
+
+	if err != nil {
+        (*conn).Write([]byte("SERVER ERROR"))
+        log.Println(err)
+        return
+    }
+
+	(*conn).Write([]byte("success"))
+}
+
+func GrantTable(dbname, tablename, username, accesstype string, conn *net.Conn) {
+	accesstype = strings.ToLower(accesstype)
+	// check for DB access
+	if accesstype != "select" && accesstype != "insert" && accesstype != "update" && accesstype != "delete"{
+		(*conn).Write([]byte("unsupported Access"))
+		return
+	}
+
+	var DBID, UID, TID int
+	err := server.dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID)
+	if err != nil {
+		(*conn).Write([]byte("database: " + dbname + " does not exists\n"))
+		return
+	}
+
+	err = server.dbstmt["SelectUser"].QueryRow(username).Scan(&UID)
+	if err != nil {
+		(*conn).Write([]byte("user: " + username + " does not exists\n"))
+		return
+	}
+
+	err = server.dbstmt["SelectTable"].QueryRow(tablename, DBID).Scan(&TID)
+	if err != nil {
+		(*conn).Write([]byte("table: " + tablename + " does not exists in database: " + strconv.Itoa(DBID) + "\n"))
+		return
+	}
+	
+	_, err = server.dbstmt["GrantTable"].Exec(TID, UID, accesstype)
+	if err != nil {
+        (*conn).Write([]byte("SERVER ERROR"))
+        log.Println(err)
+        return
+    }
+
+	(*conn).Write([]byte("success"))
 }

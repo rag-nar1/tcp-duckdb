@@ -14,13 +14,16 @@ import (
 
 )
 var preparedStmtStrings = [][]string{
-	{"login", "SELECT userid , usertype FROM user WHERE username LIKE ? AND password LIKE ? ;"},
-	{"CreateUser", "INSERT INTO user(username, password, usertype) VALUES(?, ?, ?);"},
-	{"SelectDB", "SELECT dbid FROM DB WHERE dbname LIKE ? ;"},
-	{"CreateDB", "INSERT INTO DB(dbname) VALUES(?);"},
-	{"GrantDB", "INSERT INTO dbprivilege(dbid, userid, privilegetype) VALUES(?, ?, ?);"},
-	{"CheckDbAccess", "SELECT COUNT(*) FROM dbprivilege WHERE userid == ? AND dbid == ?"},
-	{"CheckTableAccess", "SELECT COUNT(*) FROM tableprivilege WHERE userid == ? AND tableid == ? AND tableprivilege LIKE ?;"},
+	{"login", 				"SELECT userid , usertype FROM user WHERE username LIKE ? AND password LIKE ? ;"},
+	{"SelectUser", 			"SELECT userid FROM user WHERE username LIKE ? ;"},
+	{"CreateUser", 			"INSERT INTO user(username, password, usertype) VALUES(?, ?, ?);"},
+	{"SelectDB", 			"SELECT dbid FROM DB WHERE dbname LIKE ? ;"},
+	{"CreateDB", 			"INSERT INTO DB(dbname) VALUES(?);"},
+	{"GrantDB", 			"INSERT OR IGNORE INTO dbprivilege(dbid, userid, privilegetype) VALUES(?, ?, ?);"},
+	{"CheckDbAccess", 		"SELECT COUNT(*) FROM dbprivilege WHERE userid == ? AND dbid == ?"},
+	{"SelectTable", 		"SELECT tableid FROM tables WHERE tablename LIKE ? AND dbid == ?;"},
+	{"CheckTableAccess", 	"SELECT COUNT(*) FROM tableprivilege WHERE userid == ? AND tableid == ? AND tableprivilege LIKE ?;"},
+	{"GrantTable", 			"INSERT OR IGNORE INTO tableprivilege(tableid, userid, tableprivilege) VALUES(?, ?, ?);"},
 }
 type PreparedStmts map[string] *sql.Stmt
 
