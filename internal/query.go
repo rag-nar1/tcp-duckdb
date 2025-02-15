@@ -2,15 +2,57 @@ package internal
 
 import (
 	"database/sql"
+	"encoding/json"
 	"strings"
 	"github.com/xwb1989/sqlparser"
 )
 
 
-func SELECT(db *sql.DB, query string) (error) {
-	
-	
+func SELECT(db *sql.DB, query string) ([]byte, error) {
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil ,err
+	}
 
+	result, err := ReadRows(rows)
+	if err != nil {
+		return nil ,err
+	}
+
+	dataJson, err := json.Marshal(result)
+	if err != nil {
+		return nil ,err
+	}
+
+	return dataJson, nil
+}
+
+
+func ReadRows(rows *sql.Rows) ([]map[string]interface{}, error) {
+	var result []map[string]interface{}
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil ,err
+	}
+
+	columnsSz := len(columns)
+	for rows.Next() {
+		row := make([]interface{}, columnsSz)
+		rowPtr := make([]interface{}, columnsSz)
+		for i := range row {
+			rowPtr[i] = &row[i]
+		}
+
+		rows.Scan(rowPtr...)
+		object := make(map[string]interface{})
+		for i , columnName := range columns {
+			object[columnName] = row[i] 
+		}
+
+		result = append(result, object)
+	}
+
+	return result, nil
 }
 
 func CheckDDLActions(query string) (bool, error) {

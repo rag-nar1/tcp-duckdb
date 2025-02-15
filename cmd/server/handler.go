@@ -223,7 +223,8 @@ func DbConnectionHandler(UID int, UserName, privilege, dbname string, conn *net.
         log.Println(err)
         return
     }
-    (*conn).Write([]byte("success"))
+    (*conn).Write([]byte("success\n"))
+    
 	for {
 		n , err := (*conn).Read(buffer)
 		if err != nil {
@@ -232,18 +233,14 @@ func DbConnectionHandler(UID int, UserName, privilege, dbname string, conn *net.
 			return
 		}
 
-        query := strings.Split(string(buffer[0:n]) , " ")[0]
+        query := strings.ToLower(strings.Split(string(buffer[0:n]) , " ")[0])
 
-        if query != "SELECT" && query != "TRANSACTION" {
-            (*conn).Write([]byte("unsupported Query"))
-            continue
+        if query == "start" { // transaction
+            
         }
 
-        if query == "SELECT" {
-            // todo: add selecet query and design the response design
-        }
-        
-        
+        // single query
+        QueryHandler(utils.Trim(string(buffer)), UserName, dbname, privilege, UID, DBID, conn)
         
 	}
 
@@ -255,12 +252,14 @@ func QueryHandler(query, username, dbname, privilege string, UID, DBID int, conn
 		hasaccess , err := internal.CheckAccesOverTable(server.Sqlitedb, server.dbstmt["CheckTableAccess"], query, UID, DBID)
 		if err != nil || !hasaccess{
 			(*conn).Write([]byte("Access denied"))
+            log.Println(err)
 			return
 		}
 	} else {
 		hasDDL , err := internal.CheckDDLActions(query)
 		if err != nil || !hasDDL {
 			(*conn).Write([]byte("Access denied"))
+            log.Println(err)
 			return
 		}
 	}
@@ -273,10 +272,17 @@ func QueryHandler(query, username, dbname, privilege string, UID, DBID int, conn
 	}
 
 	if strings.HasPrefix(query, "select") {
+        data, err := internal.SELECT(db, query)
+        if err != nil {
+            (*conn).Write([]byte("SERVER ERROR"))
+            log.Println(err)
+            return
+        }
 
-	} else {
-
+        (*conn).Write(data)
+        return
 	}
+    // other statements
 
 }
 
