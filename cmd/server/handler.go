@@ -210,7 +210,7 @@ func DbConnectionHandler(UID int, UserName, privilege, dbname string, conn *net.
 		return
 	}
 
-	if access == 0 {
+	if access == 0 && privilege != "super" {
 		(*conn).Write([]byte("user: " + UserName + " does not have access over database: " + dbname + "\n"))
 		return
 	}
@@ -248,17 +248,11 @@ func DbConnectionHandler(UID int, UserName, privilege, dbname string, conn *net.
 
 func QueryHandler(query, username, dbname, privilege string, UID, DBID int, conn *net.Conn) {
 	query = strings.ToLower(query)
-	fmt.Println(query)
+	
 	if privilege != "super" {
 		hasaccess , err := internal.CheckAccesOverTable(server.Sqlitedb, server.dbstmt["CheckTableAccess"], query, UID, DBID)
-		if err != nil || !hasaccess{
-			(*conn).Write([]byte("Access denied\n"))
-            log.Println(err)
-			return
-		}
-	} else {
 		hasDDL , err := internal.CheckDDLActions(query)
-		if err != nil || !hasDDL {
+		if err != nil || !hasaccess || hasDDL {
 			(*conn).Write([]byte("Access denied\n"))
             log.Println(err)
 			return
@@ -284,12 +278,20 @@ func QueryHandler(query, username, dbname, privilege string, UID, DBID int, conn
         return
 	}
 
-	if strings.HasPrefix(query, "Create") { 
+	if strings.HasPrefix(query, "create") { 
 		/*
 			todo:
 			1- create handler in internals 2- parse query create the table in sqlite database
 		*/
-
+		log.Println("creatinngg")
+		err = internal.CREATE(db, server.Sqlitedb, server.dbstmt["CreateTable"], query, DBID)
+		if err != nil {
+			(*conn).Write([]byte("SERVER ERROR\n"))
+			log.Println(err)
+			return
+		}
+		(*conn).Write([]byte("success\n"))
+        return
 	}
 
     // other statements

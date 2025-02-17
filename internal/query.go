@@ -47,6 +47,48 @@ func EXEC(db *sql.DB, query string) (int64, int64, error) {
 }
 
 
+func CREATE(db, server *sql.DB, stmt *sql.Stmt, query string, DBID int) (error){
+	tables, err := ExtractTableNames(query)
+	if err != nil {
+		return err
+	}
+
+	userTx, err := db.Begin()
+    if err != nil {
+		return err
+	}
+	defer userTx.Rollback()
+
+	_, err = userTx.Exec(query)
+	if err != nil {
+		return err
+	}
+
+	servertx, err := server.Begin();
+	if err != nil {
+		return err
+	}
+	defer servertx.Rollback()
+
+	for _, table := range tables {
+		_, err := servertx.Stmt(stmt).Exec(table, DBID)
+		if err != nil {
+			return err
+		}
+	}
+	err = servertx.Commit()
+	if err != nil {
+		return err
+	}
+	err = userTx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+
 func ReadRows(rows *sql.Rows) ([]map[string]interface{}, error) {
 	var result []map[string]interface{}
 	columns, err := rows.Columns()
@@ -99,7 +141,7 @@ func CheckDDLActions(query string) (bool, error) {
 		return false, err
 	}
 
-	return true, nil
+	return (len(DDL) > 0), nil
 }
 
 func CheckAccesOverTable(db *sql.DB, stmt *sql.Stmt, query string, UID, DBID int) (bool, error){
@@ -129,6 +171,45 @@ func CheckAccesOverTable(db *sql.DB, stmt *sql.Stmt, query string, UID, DBID int
 	}
 
 	return true, nil
+}
+
+func ExtractTableNames(query string) ([]string, error) {
+    stmt, err := sqlparser.Parse(query)
+    if err != nil {
+        return nil, err
+    }
+
+    tableNames := make(map[string]bool)
+
+    // Walk through the AST and collect table names
+    sqlparser.Walk(func(node sqlparser.SQLNode) (kontinue bool, err error) {
+        switch n := node.(type) {
+        case *sqlparser.TableName:
+            if !n.IsEmpty() {
+                tableName := n.Name.String()
+                tableNames[tableName] = true
+            }
+        case *sqlparser.DDL:
+            // Handle CREATE, DROP, ALTER table statements
+            if !n.NewName.IsEmpty() {
+                tableName := n.NewName.Name.String()
+                tableNames[tableName] = true
+            }
+            if !n.Table.IsEmpty() {
+                tableName := n.Table.Name.String()
+                tableNames[tableName] = true
+            }
+        }
+        return true, nil
+    }, stmt)
+
+    // Convert map to slice
+    result := make([]string, 0, len(tableNames))
+    for tableName := range tableNames {
+        result = append(result, tableName)
+    }
+
+    return result, nil
 }
 
 // extractTableNamesFromTableExprs extracts table names from a list of TableExprs.

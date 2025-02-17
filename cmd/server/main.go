@@ -24,6 +24,7 @@ var preparedStmtStrings = [][]string{
 	{"SelectTable", 		"SELECT tableid FROM tables WHERE tablename LIKE ? AND dbid == ?;"},
 	{"CheckTableAccess", 	"SELECT COUNT(*) FROM tableprivilege WHERE userid == ? AND tableid == ? AND tableprivilege LIKE ?;"},
 	{"GrantTable", 			"INSERT OR IGNORE INTO tableprivilege(tableid, userid, tableprivilege) VALUES(?, ?, ?);"},
+	{"CreateTable",			"INSERT OR IGNORE INTO tables(tablename, dbid) VALUES(?, ?);"},
 }
 type PreparedStmts map[string] *sql.Stmt
 
