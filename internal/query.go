@@ -27,6 +27,25 @@ func SELECT(db *sql.DB, query string) ([]byte, error) {
 	return dataJson, nil
 }
 
+func EXEC(db *sql.DB, query string) (int64, int64, error) {
+    result, err := db.Exec(query)
+    if err != nil {
+		return 0, 0, err
+	}
+
+    LastInsertedID, err := result.LastInsertId()
+    if err != nil {
+		return 0, 0, err
+	}
+
+    RowsAffected,err := result.RowsAffected()
+    if err != nil {
+		return 0, 0, err
+	}
+    
+    return LastInsertedID, RowsAffected, nil
+}
+
 
 func ReadRows(rows *sql.Rows) ([]map[string]interface{}, error) {
 	var result []map[string]interface{}

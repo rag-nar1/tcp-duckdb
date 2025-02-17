@@ -4,6 +4,7 @@ import (
 	"TCP-Duckdb/internal"
 	"TCP-Duckdb/utils"
 	"database/sql"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -39,7 +40,7 @@ func DBHandler(UID int, UserName, privilege string, conn *net.Conn) {
 
 		req := strings.Split(string(rawreq[0:n]) , " ")
 		utils.TrimList(req)
-
+		
 		if req[0] != "connect" && req[0] != "create" && req[0] != "grant" && req[0] != "migrate" {
 			(*conn).Write([]byte("ERROR: BAD request\n"))
 			continue
@@ -53,13 +54,13 @@ func DBHandler(UID int, UserName, privilege string, conn *net.Conn) {
 			DbConnectionHandler(UID, UserName, privilege, req[1], conn) 
 			continue
 		}
-
+		
 		if req[0] == "create" {
 			CreatHandler(privilege, req[1:], conn)
 			continue
 		}
-
-		if req[1] == "grant" {
+		
+		if req[0] == "grant" {
 			GrantHandler(privilege, req[1:], conn)
 			continue
 		}
@@ -102,8 +103,7 @@ func GrantHandler(privilege string, req []string, conn *net.Conn) {
 		(*conn).Write([]byte("Unauthorized\n"))
 		return
 	}
-
-	if (req[0] != "database" && req[0] != "user") || (req[0] == "database" && len(req) != 4) || (req[0] == "table" && len(req) != 5) {
+	if (req[0] != "database" && req[0] != "table") || (req[0] == "database" && len(req) != 4) || (req[0] == "table" && len(req) != 5) {
 		(*conn).Write([]byte("ERROR: BAD request\n"))
 		return
 	}
@@ -211,7 +211,7 @@ func DbConnectionHandler(UID int, UserName, privilege, dbname string, conn *net.
 	}
 
 	if access == 0 {
-		(*conn).Write([]byte("user: " + UserName + " does not have access over database: " + dbname))
+		(*conn).Write([]byte("user: " + UserName + " does not have access over database: " + dbname + "\n"))
 		return
 	}
 
@@ -219,7 +219,7 @@ func DbConnectionHandler(UID int, UserName, privilege, dbname string, conn *net.
 
     _ , err = sql.Open("duckdb" , os.Getenv("DBdir") + "/users/" + dbname + ".db")
     if err != nil {
-        (*conn).Write([]byte("SERVER ERROR"))
+        (*conn).Write([]byte("SERVER ERROR\n"))
         log.Println(err)
         return
     }
@@ -240,7 +240,7 @@ func DbConnectionHandler(UID int, UserName, privilege, dbname string, conn *net.
         }
 
         // single query
-        QueryHandler(utils.Trim(string(buffer)), UserName, dbname, privilege, UID, DBID, conn)
+        QueryHandler(utils.Trim(string(buffer[0:n])), UserName, dbname, privilege, UID, DBID, conn)
         
 	}
 
@@ -248,17 +248,18 @@ func DbConnectionHandler(UID int, UserName, privilege, dbname string, conn *net.
 
 func QueryHandler(query, username, dbname, privilege string, UID, DBID int, conn *net.Conn) {
 	query = strings.ToLower(query)
+	fmt.Println(query)
 	if privilege != "super" {
 		hasaccess , err := internal.CheckAccesOverTable(server.Sqlitedb, server.dbstmt["CheckTableAccess"], query, UID, DBID)
 		if err != nil || !hasaccess{
-			(*conn).Write([]byte("Access denied"))
+			(*conn).Write([]byte("Access denied\n"))
             log.Println(err)
 			return
 		}
 	} else {
 		hasDDL , err := internal.CheckDDLActions(query)
 		if err != nil || !hasDDL {
-			(*conn).Write([]byte("Access denied"))
+			(*conn).Write([]byte("Access denied\n"))
             log.Println(err)
 			return
 		}
@@ -266,7 +267,7 @@ func QueryHandler(query, username, dbname, privilege string, UID, DBID int, conn
 		
 	db , err := sql.Open("duckdb", os.Getenv("DBdir") + "/users/" + dbname + ".db")
 	if err != nil {
-		(*conn).Write([]byte("SERVER ERROR"))
+		(*conn).Write([]byte("SERVER ERROR\n"))
 		log.Println(err)
 		return
 	}
@@ -274,23 +275,40 @@ func QueryHandler(query, username, dbname, privilege string, UID, DBID int, conn
 	if strings.HasPrefix(query, "select") {
         data, err := internal.SELECT(db, query)
         if err != nil {
-            (*conn).Write([]byte("SERVER ERROR"))
+            (*conn).Write([]byte("SERVER ERROR\n"))
             log.Println(err)
             return
         }
-
+		data = append(data, '\n')
         (*conn).Write(data)
         return
 	}
-    // other statements
 
+	if strings.HasPrefix(query, "Create") { 
+		/*
+			todo:
+			1- create handler in internals 2- parse query create the table in sqlite database
+		*/
+
+	}
+
+    // other statements
+	LastInsertedID, RowsAffected, err := internal.EXEC(db, query)
+	if err != nil {
+		(*conn).Write([]byte("SERVER ERROR\n"))
+		log.Println(err)
+		return
+	}
+
+	data := []byte(strconv.Itoa(int(LastInsertedID)) + " " + strconv.Itoa(int(RowsAffected)) + "\n")
+	(*conn).Write(data)
 }
 
 func GrantDB(dbname, username, accesstype string, conn *net.Conn) {
 	accesstype = strings.ToLower(accesstype)
 	// check for DB access
 	if accesstype != "read" && accesstype != "write" {
-		(*conn).Write([]byte("unsupported Access"))
+		(*conn).Write([]byte("unsupported Access\n"))
 		return
 	}
 	// get DBID , UID
@@ -312,19 +330,19 @@ func GrantDB(dbname, username, accesstype string, conn *net.Conn) {
 	_, err = server.dbstmt["GrantDB"].Exec(DBID, UID, accesstype)
 
 	if err != nil {
-        (*conn).Write([]byte("SERVER ERROR"))
+        (*conn).Write([]byte("SERVER ERROR\n"))
         log.Println(err)
         return
     }
 
-	(*conn).Write([]byte("success"))
+	(*conn).Write([]byte("success\n"))
 }
 
 func GrantTable(dbname, tablename, username, accesstype string, conn *net.Conn) {
 	accesstype = strings.ToLower(accesstype)
 	// check for DB access
 	if accesstype != "select" && accesstype != "insert" && accesstype != "update" && accesstype != "delete"{
-		(*conn).Write([]byte("unsupported Access"))
+		(*conn).Write([]byte("unsupported Access\n"))
 		return
 	}
 
@@ -349,10 +367,10 @@ func GrantTable(dbname, tablename, username, accesstype string, conn *net.Conn) 
 	
 	_, err = server.dbstmt["GrantTable"].Exec(TID, UID, accesstype)
 	if err != nil {
-        (*conn).Write([]byte("SERVER ERROR"))
+        (*conn).Write([]byte("SERVER ERROR\n"))
         log.Println(err)
         return
     }
 
-	(*conn).Write([]byte("success"))
+	(*conn).Write([]byte("success\n"))
 }
