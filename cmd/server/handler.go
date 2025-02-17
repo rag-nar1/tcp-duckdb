@@ -235,7 +235,7 @@ func DbConnectionHandler(UID int, UserName, privilege, dbname string, conn *net.
 
         query := strings.ToLower(strings.Split(string(buffer[0:n]) , " ")[0])
 
-        if query == "start" { // transaction
+        if query == "start" { // todo: transaction
             
         }
 
@@ -279,11 +279,6 @@ func QueryHandler(query, username, dbname, privilege string, UID, DBID int, conn
 	}
 
 	if strings.HasPrefix(query, "create") { 
-		/*
-			todo:
-			1- create handler in internals 2- parse query create the table in sqlite database
-		*/
-		log.Println("creatinngg")
 		err = internal.CREATE(db, server.Sqlitedb, server.dbstmt["CreateTable"], query, DBID)
 		if err != nil {
 			(*conn).Write([]byte("SERVER ERROR\n"))
