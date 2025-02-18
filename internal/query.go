@@ -7,8 +7,14 @@ import (
 	"github.com/xwb1989/sqlparser"
 )
 
+type SQLExecutor interface {
+    Query(query string, args ...interface{}) (*sql.Rows, error)
+    QueryRow(query string, args ...interface{}) *sql.Row
+    Exec(query string, args ...interface{}) (sql.Result, error)
+}
 
-func SELECT(db *sql.DB, query string) ([]byte, error) {
+
+func SELECT(db SQLExecutor, query string) ([]byte, error) {
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil ,err
@@ -27,7 +33,7 @@ func SELECT(db *sql.DB, query string) ([]byte, error) {
 	return dataJson, nil
 }
 
-func EXEC(db *sql.DB, query string) (int64, int64, error) {
+func EXEC(db SQLExecutor, query string) (int64, int64, error) {
     result, err := db.Exec(query)
     if err != nil {
 		return 0, 0, err
@@ -47,40 +53,35 @@ func EXEC(db *sql.DB, query string) (int64, int64, error) {
 }
 
 
-func CREATE(db, server *sql.DB, stmt *sql.Stmt, query string, DBID int) (error){
+func CREATE(db SQLExecutor, server *sql.DB, stmt *sql.Stmt, query string, DBID int) (error){
 	tables, err := ExtractTableNames(query)
 	if err != nil {
 		return err
 	}
 
-	userTx, err := db.Begin()
     if err != nil {
 		return err
 	}
-	defer userTx.Rollback()
 
-	_, err = userTx.Exec(query)
-	if err != nil {
-		return err
-	}
-
+	
 	servertx, err := server.Begin();
 	if err != nil {
 		return err
 	}
 	defer servertx.Rollback()
-
+	
 	for _, table := range tables {
 		_, err := servertx.Stmt(stmt).Exec(table, DBID)
 		if err != nil {
 			return err
 		}
 	}
-	err = servertx.Commit()
+	_, err = db.Exec(query)
 	if err != nil {
 		return err
 	}
-	err = userTx.Commit()
+
+	err = servertx.Commit()
 	if err != nil {
 		return err
 	}

@@ -4,7 +4,7 @@ import (
 	"TCP-Duckdb/internal"
 	"TCP-Duckdb/utils"
 	"database/sql"
-	"fmt"
+	// "fmt"
 	"log"
 	"net"
 	"os"
@@ -236,7 +236,12 @@ func DbConnectionHandler(UID int, UserName, privilege, dbname string, conn *net.
         query := strings.ToLower(strings.Split(string(buffer[0:n]) , " ")[0])
 
         if query == "start" { // todo: transaction
-            
+            if strings.ToLower(utils.Trim(string(buffer[0:n]))) != "start transaction" {
+                (*conn).Write([]byte("Bad Request\n"))
+                continue
+            }
+            TransactionHandler(UID, DBID, dbname, privilege, conn)
+            continue
         }
 
         // single query
@@ -246,18 +251,120 @@ func DbConnectionHandler(UID int, UserName, privilege, dbname string, conn *net.
 
 }
 
-func QueryHandler(query, username, dbname, privilege string, UID, DBID int, conn *net.Conn) {
-	query = strings.ToLower(query)
-	
+func TransactionHandler(UID, DBID int, dbname, privilege string, conn *net.Conn) {
+    buffer := make([]byte, 4096)
+    db , err := sql.Open("duckdb", os.Getenv("DBdir") + "/users/" + dbname + ".db")
+    if err != nil {
+		(*conn).Write([]byte("SERVER ERROR\n"))
+		log.Println(err)
+		return
+	}
+
+    transaction, err := db.Begin()
+    if err != nil {
+		(*conn).Write([]byte("SERVER ERROR\n"))
+		log.Println(err)
+		return
+	}
+    defer transaction.Rollback()
+
+    for {
+        n , err := (*conn).Read(buffer)
+		if err != nil {
+			(*conn).Write([]byte("ERROR: while reading\n"))
+			log.Println("ERROR" , err)
+			return
+		}
+        query := strings.ToLower(utils.Trim(string(buffer[0:n])))
+        if strings.HasPrefix(query, "rollback") {
+            return
+        }
+        if strings.HasPrefix(query, "commit") {
+            err = transaction.Commit()
+            if err != nil {
+                log.Println(err)
+                (*conn).Write([]byte("Error while commiting transaction\n"))
+            }
+            return
+        }
+        
+        success, err := QueryExecuterTx(query, privilege, UID, DBID, transaction, conn)
+        if !success{
+            if err != nil {
+                log.Println(err)
+                (*conn).Write([]byte("Error while executing query\n"))
+                return
+            }
+            (*conn).Write([]byte("Error while executing query: ACCESS denied\n"))
+            return
+        }
+    }
+
+}
+
+func QueryExecuterTx(query, privilege string, UID, DBID int, tx *sql.Tx, conn *net.Conn) (bool, error) {
+    authraized, err := AccessHandler(query, privilege, UID, DBID)
+    if err != nil {
+        return false, err
+	}
+    if !authraized {
+        return false, nil
+    }
+
+    if strings.HasPrefix(query, "select") {
+        data, err := internal.SELECT(tx, query)
+        if err != nil {
+            return false, err
+        }
+		data = append(data, '\n')
+        (*conn).Write(data)
+        return true, nil
+	}
+
+	if strings.HasPrefix(query, "create") { 
+		err = internal.CREATE(tx, server.Sqlitedb, server.dbstmt["CreateTable"], query, DBID)
+        if err != nil {
+            return false, err
+        }
+        return true, nil
+	}
+
+    // other statements
+	LastInsertedID, RowsAffected, err := internal.EXEC(tx, query)
+	if err != nil {
+        return false, err
+    }
+
+	data := []byte(strconv.Itoa(int(LastInsertedID)) + " " + strconv.Itoa(int(RowsAffected)) + "\n")
+	(*conn).Write(data)
+    return true, nil
+}
+
+func AccessHandler(query, privilege string, UID, DBID int) (bool, error){
+    query = strings.ToLower(query)
 	if privilege != "super" {
 		hasaccess , err := internal.CheckAccesOverTable(server.Sqlitedb, server.dbstmt["CheckTableAccess"], query, UID, DBID)
 		hasDDL , err := internal.CheckDDLActions(query)
-		if err != nil || !hasaccess || hasDDL {
-			(*conn).Write([]byte("Access denied\n"))
-            log.Println(err)
-			return
+		if err != nil {
+			return false, err
 		}
+        return (hasaccess && !hasDDL), nil
 	}
+    return true, nil
+}
+
+func QueryHandler(query, username, dbname, privilege string, UID, DBID int, conn *net.Conn) {
+	query = strings.ToLower(query)
+    authraized, err := AccessHandler(query, privilege, UID, DBID)
+	if err != nil {
+        (*conn).Write([]byte("SERVER ERROR\n"))
+        log.Println(err)
+        return
+	}
+    if !authraized {
+        (*conn).Write([]byte("Access denied\n"))
+        return
+    }
 		
 	db , err := sql.Open("duckdb", os.Getenv("DBdir") + "/users/" + dbname + ".db")
 	if err != nil {
