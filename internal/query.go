@@ -19,6 +19,7 @@ func SELECT(db SQLExecutor, query string) ([]byte, error) {
 	if err != nil {
 		return nil ,err
 	}
+	defer rows.Close()
 
 	result, err := ReadRows(rows)
 	if err != nil {
@@ -58,11 +59,6 @@ func CREATE(db SQLExecutor, server *sql.DB, stmt *sql.Stmt, query string, DBID i
 	if err != nil {
 		return err
 	}
-
-    if err != nil {
-		return err
-	}
-
 	
 	servertx, err := server.Begin();
 	if err != nil {

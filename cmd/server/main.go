@@ -25,6 +25,8 @@ var preparedStmtStrings = [][]string{
 	{"CheckTableAccess", 	"SELECT COUNT(*) FROM tableprivilege WHERE userid == ? AND tableid == ? AND tableprivilege LIKE ?;"},
 	{"GrantTable", 			"INSERT OR IGNORE INTO tableprivilege(tableid, userid, tableprivilege) VALUES(?, ?, ?);"},
 	{"CreateTable",			"INSERT OR IGNORE INTO tables(tablename, dbid) VALUES(?, ?);"},
+	{"CreateLink",			"INSERT OR IGNORE INTO postgres(dbid, connstr) VALUES(?, ?);"},
+	{"CreateKey",			"INSERT OR IGNORE INTO keys(dbid, key) VALUES(?, ?);"},
 }
 
 var infoLog, errorLog *log.Logger

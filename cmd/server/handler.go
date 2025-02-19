@@ -5,7 +5,7 @@ import (
 	"TCP-Duckdb/utils"
 	"bufio"
 	"database/sql"
-
+	"crypto/rand"
 	// "fmt"
 	"log"
 	"os"
@@ -42,7 +42,7 @@ func DBHandler(UID int, UserName, privilege string, reader *bufio.Reader, writer
 		req := strings.Split(string(rawreq[0:n]) , " ")
 		utils.TrimList(req)
 		
-		if req[0] != "connect" && req[0] != "create" && req[0] != "grant" && req[0] != "migrate" {
+		if req[0] != "connect" && req[0] != "create" && req[0] != "grant" && req[0] != "migrate" && req[0] != "link" {
 			Write(writer, []byte("ERROR: BAD request\n"))
 			continue
 		}
@@ -57,13 +57,17 @@ func DBHandler(UID int, UserName, privilege string, reader *bufio.Reader, writer
 		}
 		
 		if req[0] == "create" {
-			CreatHandler(privilege, req[1:], reader, writer)
+			CreatHandler(privilege, req[1:], writer)
 			continue
 		}
 		
 		if req[0] == "grant" {
-			GrantHandler(privilege, req[1:], reader, writer)
+			GrantHandler(privilege, req[1:], writer)
 			continue
+		}
+
+		if req[0] == "link" {
+			LinkHandler(privilege, req[1:], writer)
 		}
 
 		MigrateHandler()
@@ -71,10 +75,88 @@ func DBHandler(UID int, UserName, privilege string, reader *bufio.Reader, writer
 	}
 	
 }
+// link dbname connStr
+func LinkHandler(privilege string, req []string, writer *bufio.Writer) {
+	if privilege != "super" {
+		Write(writer, []byte("Unauthorized\n"))
+		return
+	}
 
+	dbname, connStr := req[0], req[1]
+	// check the existince of the database
+	var DBID int
+	err := server.dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID)
+	if err != nil {
+		Write(writer, []byte("database: " + dbname + " does not exists\n"))
+		errorLog.Println(err)
+		return
+	}
+
+	// check the connStr
+	db, err := sql.Open("postgres", connStr)
+	if err != nil {
+		Write(writer, []byte("error while connecting to the postgresql database\n"))
+		errorLog.Println(err)
+		return
+	}
+
+	err = db.Ping()
+	if err != nil {
+		Write(writer, []byte("error while connecting to the postgresql database\n"))
+		errorLog.Println(err)
+		return
+	}
+
+	// generete random 32 byte key for encryption
+	key := make([]byte, 32)
+	_, err = rand.Read(key)
+	if err != nil {
+		Write(writer, []byte("Server Error\n"))
+		errorLog.Println(err)
+		return
+	}
+
+	encryptedConnStr , err := utils.Encrypt(connStr, key)
+	if err != nil {
+		Write(writer, []byte("Server Error\n"))
+		errorLog.Println(err)
+		return
+	}
+
+	// start a transaction to insert the key and the connstr
+	transaction, err := server.Sqlitedb.Begin()
+	if err != nil {
+		Write(writer, []byte("Server Error\n"))
+		errorLog.Println(err)
+		return
+	}
+	defer transaction.Rollback()
+
+	// insert the key
+	_,err = transaction.Stmt(server.dbstmt["CreateKey"]).Exec(DBID, string(key))
+	if err != nil {
+		Write(writer, []byte("Server Error\n"))
+		errorLog.Println(err)
+		return
+	}
+	// insert the connstr
+	_,err = transaction.Stmt(server.dbstmt["CreateLink"]).Exec(DBID, encryptedConnStr)
+	if err != nil {
+		Write(writer, []byte("Server Error\n"))
+		errorLog.Println(err)
+		return
+	}
+	transaction.Commit()
+	Write(writer, []byte("success\n"))
+}
+
+
+func MigrateHandler() { // todo
+
+}
 // create database [dbname],
 // create user [dbname] [username] [password]
-func CreatHandler(privilege string, req []string, reader *bufio.Reader, writer *bufio.Writer) {
+func CreatHandler(privilege string, req []string, writer *bufio.Writer) {
 	if privilege != "super" {
 		Write(writer, []byte("Unauthorized\n"))
 		return
@@ -86,7 +168,7 @@ func CreatHandler(privilege string, req []string, reader *bufio.Reader, writer *
 	}
 
 	if req[1] == "database" {
-		CreateDB(req[2], reader, writer)
+		CreateDB(req[2], writer)
 		return
 	}
 
@@ -95,36 +177,13 @@ func CreatHandler(privilege string, req []string, reader *bufio.Reader, writer *
 		return
 	}
 
-	CreateUser(req[2], req[3], req[4], reader, writer) 
-}
-// grant database [dbname] [username] [accesstype] ,
-// grant table [dbname] [tablename] [username] [accesstype] 
-func GrantHandler(privilege string, req []string, reader *bufio.Reader, writer *bufio.Writer) { 
-	if privilege != "super" {
-		Write(writer, []byte("Unauthorized\n"))
-		return
-	}
-	if (req[0] != "database" && req[0] != "table") || (req[0] == "database" && len(req) != 4) || (req[0] == "table" && len(req) != 5) {
-		Write(writer, []byte("ERROR: BAD request\n"))
-		return
-	}
-
-	if req[0] == "database" {
-		GrantDB(req[1], req[2], req[3], reader, writer)
-		return
-	}
-
-	GrantTable(req[1], req[2], req[3], req[4], reader, writer)
+	CreateUser(req[2], req[3], req[4], writer) 
 }
 
-func MigrateHandler() { // todo
-
-}
-
-func CreateDB(dbname string, reader *bufio.Reader, writer *bufio.Writer) {
+func CreateDB(dbname string, writer *bufio.Writer) {
 	var DBID int
 	err := server.dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID)
-	if err == nil {
+	if err == nil && DBID != 0 {
 		Write(writer, []byte("database: " + dbname + " already exists\n"))
 		return
 	}
@@ -148,7 +207,7 @@ func CreateDB(dbname string, reader *bufio.Reader, writer *bufio.Writer) {
 	Write(writer, []byte("success\n"))
 }
 
-func CreateUser(dbname, NewUser, password string, reader *bufio.Reader, writer *bufio.Writer) {
+func CreateUser(dbname, NewUser, password string, writer *bufio.Writer) {
 	var DBID, UID int
 	err := server.dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID)
 	if err != nil {
@@ -246,7 +305,7 @@ func DbConnectionHandler(UID int, UserName, privilege, dbname string, reader *bu
         }
 
         // single query
-        QueryHandler(utils.Trim(string(buffer[0:n])), UserName, dbname, privilege, UID, DBID, reader, writer)
+        QueryHandler(utils.Trim(string(buffer[0:n])), UserName, dbname, privilege, UID, DBID, writer)
         
 	}
 
@@ -289,7 +348,7 @@ func TransactionHandler(UID, DBID int, dbname, privilege string, reader *bufio.R
             return
         }
         
-        success, err := QueryExecuterTx(query, privilege, UID, DBID, transaction, reader, writer)
+        success, err := QueryExecuterTx(query, privilege, UID, DBID, transaction, writer)
         if !success{
             if err != nil {
                 errorLog.Println(err)
@@ -303,7 +362,7 @@ func TransactionHandler(UID, DBID int, dbname, privilege string, reader *bufio.R
 
 }
 
-func QueryExecuterTx(query, privilege string, UID, DBID int, tx *sql.Tx, reader *bufio.Reader, writer *bufio.Writer) (bool, error) {
+func QueryExecuterTx(query, privilege string, UID, DBID int, tx *sql.Tx, writer *bufio.Writer) (bool, error) {
     authraized, err := AccessHandler(query, privilege, UID, DBID)
     if err != nil {
         return false, err
@@ -354,7 +413,7 @@ func AccessHandler(query, privilege string, UID, DBID int) (bool, error){
     return true, nil
 }
 
-func QueryHandler(query, username, dbname, privilege string, UID, DBID int, reader *bufio.Reader, writer *bufio.Writer) {
+func QueryHandler(query, username, dbname, privilege string, UID, DBID int, writer *bufio.Writer) {
 	query = strings.ToLower(query)
     authraized, err := AccessHandler(query, privilege, UID, DBID)
 	if err != nil {
@@ -409,7 +468,27 @@ func QueryHandler(query, username, dbname, privilege string, UID, DBID int, read
 	Write(writer, data)
 }
 
-func GrantDB(dbname, username, accesstype string, reader *bufio.Reader, writer *bufio.Writer) {
+// grant database [dbname] [username] [accesstype] ,
+// grant table [dbname] [tablename] [username] [accesstype] 
+func GrantHandler(privilege string, req []string, writer *bufio.Writer) { 
+	if privilege != "super" {
+		Write(writer, []byte("Unauthorized\n"))
+		return
+	}
+	if (req[0] != "database" && req[0] != "table") || (req[0] == "database" && len(req) != 4) || (req[0] == "table" && len(req) != 5) {
+		Write(writer, []byte("ERROR: BAD request\n"))
+		return
+	}
+
+	if req[0] == "database" {
+		GrantDB(req[1], req[2], req[3], writer)
+		return
+	}
+
+	GrantTable(req[1], req[2], req[3], req[4], writer)
+}
+
+func GrantDB(dbname, username, accesstype string, writer *bufio.Writer) {
 	accesstype = strings.ToLower(accesstype)
 	// check for DB access
 	if accesstype != "read" && accesstype != "write" {
@@ -443,7 +522,7 @@ func GrantDB(dbname, username, accesstype string, reader *bufio.Reader, writer *
 	Write(writer, []byte("success\n"))
 }
 
-func GrantTable(dbname, tablename, username, accesstype string, reader *bufio.Reader, writer *bufio.Writer) {
+func GrantTable(dbname, tablename, username, accesstype string, writer *bufio.Writer) {
 	accesstype = strings.ToLower(accesstype)
 	// check for DB access
 	if accesstype != "select" && accesstype != "insert" && accesstype != "update" && accesstype != "delete"{
