@@ -1,17 +1,17 @@
 package main
 
 import (
+	"TCP-Duckdb/utils"
+	"bufio"
 	"database/sql"
 	"log"
 	"net"
 	"os"
 	"strings"
-	"TCP-Duckdb/utils"
 
 	"github.com/joho/godotenv"
 	_ "github.com/marcboeker/go-duckdb"
 	_ "github.com/mattn/go-sqlite3"
-
 )
 var preparedStmtStrings = [][]string{
 	{"login", 				"SELECT userid , usertype FROM user WHERE username LIKE ? AND password LIKE ? ;"},
@@ -26,14 +26,24 @@ var preparedStmtStrings = [][]string{
 	{"GrantTable", 			"INSERT OR IGNORE INTO tableprivilege(tableid, userid, tableprivilege) VALUES(?, ?, ?);"},
 	{"CreateTable",			"INSERT OR IGNORE INTO tables(tablename, dbid) VALUES(?, ?);"},
 }
+
+var infoLog, errorLog *log.Logger
+
 type PreparedStmts map[string] *sql.Stmt
+
+func Write(writer *bufio.Writer, data []byte) error {
+	if _, err := writer.Write(data); err != nil {
+        return err
+    }
+    return writer.Flush()
+}
 
 type Server struct {
 	// db connection bool
-	Sqlitedb *sql.DB
-	dbstmt PreparedStmts
-	Port string
-	Address string
+	Sqlitedb 	*sql.DB
+	dbstmt 		PreparedStmts
+	Port 		string
+	Address 	string
 }
 
 // cread prepared statments to use in executing queries 
@@ -43,7 +53,7 @@ func (s *Server) prepareStmt() {
 	for _ , stmt := range preparedStmtStrings {
 		tmpStmt , err = s.Sqlitedb.Prepare(stmt[1])
 		if err != nil {
-			log.Fatal(err)
+			errorLog.Fatal(err)
 		}
 
 		s.dbstmt[stmt[0]] = tmpStmt
@@ -56,22 +66,24 @@ func (s *Server) CreateSuper() {
 	hashedPassword := utils.Hash("duck")
 	res , err := s.Sqlitedb.Exec("INSERT OR IGNORE INTO user(username, password, usertype) values('duck', ?, 'super')",hashedPassword)
 	if err != nil {
-		log.Fatal(err)
+		errorLog.Fatal(err)
 	}
 	affected , _ := res.RowsAffected()
 	if affected == 1 {
-		log.Print("Super user created")
+		infoLog.Println("Super user created")
 	}
 }
 
-func HandleConnection(conn *net.Conn) {
-	defer (*conn).Close()
-	log.Println("Serving " + (*conn).RemoteAddr().String())
+func HandleConnection(conn net.Conn) {
+	defer conn.Close()
+	infoLog.Println("Serving " + conn.RemoteAddr().String())
+	reader := bufio.NewReader(conn)
+	writer := bufio.NewWriter(conn)
 	// read login request
 	route := make([]byte, 1024)
-	n , err := (*conn).Read(route)
+	n , err := reader.Read(route)
 	if err != nil {
-		log.Println("ERROR" , err)
+		errorLog.Println(err)
 		return
 	}
 	// check for a valid request
@@ -79,19 +91,19 @@ func HandleConnection(conn *net.Conn) {
 	var UserName , password , privilege string
 	var UID int
 	if request[0] != "login" || len(request) != 3 {
-		(*conn).Write([]byte("ERROR: BAD request\n"))
+		Write(writer, []byte("ERROR: BAD request\n"))
 		return
 	}
 	// validate the username and password
 	UserName, password = utils.Trim(request[1]), utils.Trim(request[2]) 
 	UID, privilege, err = LoginHandler(UserName, password, server.dbstmt["login"])
 	if err != nil {
-		(*conn).Write([]byte("Unauthorized\n"))
-		log.Print(err)
+		Write(writer, []byte("Unauthorized\n"))
+		errorLog.Println(err)
 		return	
 	}
-	(*conn).Write([]byte("success\n"))
-	DBHandler(UID, UserName, privilege, conn)
+	Write(writer, []byte("success\n"))
+	DBHandler(UID, UserName, privilege, reader, writer)
 }
 
 	
@@ -115,14 +127,16 @@ func NewServer() (error){
 }
 
 func init() {
+	infoLog = log.New(os.Stdout, "INFO\t", log.Ldate | log.Ltime)
+	errorLog = log.New(os.Stdout, "ERROR\t", log.Ldate | log.Ltime | log.Lshortfile) 
 	err := godotenv.Load() // load environement variables
 	if err != nil {
-		log.Fatal(err)
+		errorLog.Fatal(err)
 	}
 
 	err = NewServer()
 	if err != nil {
-		log.Fatal(err)
+		errorLog.Fatal(err)
 	}
 	server.prepareStmt()
 	server.CreateSuper()
@@ -132,20 +146,18 @@ func main() {
 	// start listing to tcp connections
 	listener , err := net.Listen("tcp", server.Address)
 	if err != nil {
-		log.Fatal(err)
+		errorLog.Fatal(err)
 	}
 	defer listener.Close()
 
-	log.Println("listening to " + server.Address)
+	infoLog.Println("listening to " + server.Address)
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
-			log.Fatal(err)
+			errorLog.Fatal(err)
 		}
 		// starts a go routin to handle every connection
-		go HandleConnection(&conn)
-
-		defer conn.Close()
+		go HandleConnection(conn)
 	}
 
 }
