@@ -15,4 +15,4 @@ func TrimList(list []string) {
 	for i := 0; i < len(list); i ++ {
 		list[i] = Trim(list[i])
 	}
-}
+}	

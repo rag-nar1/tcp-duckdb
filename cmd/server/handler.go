@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	_ "github.com/marcboeker/go-duckdb"
+	_ "github.com/lib/pq"
 )
 
 func LoginHandler(UserName, password string, dbstmt *sql.Stmt) (int , string , error){
@@ -91,16 +92,24 @@ func LinkHandler(privilege string, req []string, writer *bufio.Writer) {
 		errorLog.Println(err)
 		return
 	}
+	// open duckdb
+	duck, err := sql.Open("duckdb", os.Getenv("DBdir") + "/users/" + dbname + ".db")
+	if err != nil {
+		Write(writer, []byte("error while connecting to the duckdb database\n"))
+		errorLog.Println(err)
+		return
+	}
 
 	// check the connStr
-	db, err := sql.Open("postgres", connStr)
+	postgres, err := sql.Open("postgres", connStr)
 	if err != nil {
 		Write(writer, []byte("error while connecting to the postgresql database\n"))
 		errorLog.Println(err)
 		return
 	}
+	defer postgres.Close()
 
-	err = db.Ping()
+	err = postgres.Ping()
 	if err != nil {
 		Write(writer, []byte("error while connecting to the postgresql database\n"))
 		errorLog.Println(err)
@@ -146,13 +155,24 @@ func LinkHandler(privilege string, req []string, writer *bufio.Writer) {
 		errorLog.Println(err)
 		return
 	}
+	Write(writer, []byte("successful Linking\n starting the schema migration....\n"))
+	
+	// migrate schema
+	err = internal.MigrateSchema(postgres, duck)
+	if err != nil {
+		errorLog.Println(err)
+		Write(writer, []byte("Error while migrating"))
+		return
+	}
+	Write(writer, []byte("migration is successful"))
 	transaction.Commit()
-	Write(writer, []byte("success\n"))
 }
 
 
-func MigrateHandler() { // todo
 
+
+func MigrateHandler() { // todo
+    
 }
 // create database [dbname],
 // create user [dbname] [username] [password]
@@ -295,7 +315,7 @@ func DbConnectionHandler(UID int, UserName, privilege, dbname string, reader *bu
 
         query := strings.ToLower(strings.Split(string(buffer[0:n]) , " ")[0])
 
-        if query == "start" { // todo: transaction
+        if query == "start" {
             if strings.ToLower(utils.Trim(string(buffer[0:n]))) != "start transaction" {
                 Write(writer, []byte("Bad Request\n"))
                 continue

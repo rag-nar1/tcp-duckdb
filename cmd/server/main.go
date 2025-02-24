@@ -34,6 +34,7 @@ var infoLog, errorLog *log.Logger
 type PreparedStmts map[string] *sql.Stmt
 
 func Write(writer *bufio.Writer, data []byte) error {
+	data = append(data, '\n')
 	if _, err := writer.Write(data); err != nil {
         return err
     }
