@@ -1,4 +1,5 @@
 .*
-storge/
+storge/users/*
+storge/server/*.sqlite3
 temp/
 TCP-Duckdb
