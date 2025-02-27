@@ -31,7 +31,7 @@ func (t table) GenereteSql() string {
 	return fmt.Sprintf(query, t.name, columns)
 }
 
-func MigrateSchema(postgres, duck *sql.DB) (error) {
+func Migrate(DBID int, connStr string, server *sql.Tx, stmt *sql.Stmt, postgres, duck *sql.DB) (error) {
 	var tables map[string]*table = make(map[string]*table)
 
 	rows, err := postgres.Query("SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' and table_name not like 'pg%';")
@@ -55,23 +55,33 @@ func MigrateSchema(postgres, duck *sql.DB) (error) {
 		tables[data[0]].Add(data[1],data[2])
 	}
 
-	transaction, err := duck.Begin()
-	if err != nil {
-		return err
-	}
-	defer transaction.Rollback()
-
+	// create tables in our server
 	for _, table := range tables {
-		_, err = transaction.Exec(table.GenereteSql())
+		_, err = server.Stmt(stmt).Exec(table.name, DBID)
 		if err != nil {
 			return err
 		}
 	}
 
-	err = transaction.Commit()
+	transaction, err := duck.Begin()
 	if err != nil {
 		return err
 	}
-	return nil
+	defer transaction.Rollback()
+	// connect to postgresql database to get all data
+	_,err = transaction.Exec(fmt.Sprintf("ATTACH '%s' AS postgres_db (TYPE postgres);", connStr))
+	if err != nil {
+		return err
+	}
 
+	for _, table := range tables {
+		postgrestable := "postgres_db." + table.name 
+		stmt := fmt.Sprintf("CREATE TABLE %s AS FROM %s;", table.name ,postgrestable)
+		_, err := transaction.Exec(stmt)
+		if err != nil {
+			return err
+		}
+	}
+	transaction.Commit()
+	return nil
 }

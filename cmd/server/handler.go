@@ -158,7 +158,7 @@ func LinkHandler(privilege string, req []string, writer *bufio.Writer) {
 	Write(writer, []byte("successful Linking\n starting the schema migration....\n"))
 	
 	// migrate schema
-	err = internal.MigrateSchema(postgres, duck)
+	err = internal.Migrate(DBID, connStr, transaction, server.dbstmt["CreateTable"], postgres, duck)
 	if err != nil {
 		errorLog.Println(err)
 		Write(writer, []byte("Error while migrating"))
