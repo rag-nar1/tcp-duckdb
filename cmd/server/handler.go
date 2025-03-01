@@ -4,16 +4,17 @@ import (
 	"TCP-Duckdb/internal"
 	"TCP-Duckdb/utils"
 	"bufio"
-	"database/sql"
 	"crypto/rand"
+	"database/sql"
+
 	// "fmt"
 	"log"
 	"os"
 	"strconv"
 	"strings"
 
-	_ "github.com/marcboeker/go-duckdb"
 	_ "github.com/lib/pq"
+	_ "github.com/marcboeker/go-duckdb"
 )
 
 func LoginHandler(UserName, password string, dbstmt *sql.Stmt) (int , string , error){
@@ -92,6 +93,14 @@ func LinkHandler(privilege string, req []string, writer *bufio.Writer) {
 		errorLog.Println(err)
 		return
 	}
+	var hasLink int
+	err = server.dbstmt["CheckLink"].QueryRow(DBID).Scan(&hasLink)
+	if err != nil || hasLink > 0 {
+		Write(writer, []byte("database: " + dbname + " already linked\n"))
+		errorLog.Println(err)
+		return
+	}
+
 	// open duckdb
 	duck, err := sql.Open("duckdb", os.Getenv("DBdir") + "/users/" + dbname + ".db")
 	if err != nil {
@@ -99,6 +108,7 @@ func LinkHandler(privilege string, req []string, writer *bufio.Writer) {
 		errorLog.Println(err)
 		return
 	}
+	defer duck.Close()
 
 	// check the connStr
 	postgres, err := sql.Open("postgres", connStr)
@@ -133,23 +143,38 @@ func LinkHandler(privilege string, req []string, writer *bufio.Writer) {
 	}
 
 	// start a transaction to insert the key and the connstr
-	transaction, err := server.Sqlitedb.Begin()
+	txServer, err := server.Sqlitedb.Begin()
 	if err != nil {
 		Write(writer, []byte("Server Error\n"))
 		errorLog.Println(err)
 		return
 	}
-	defer transaction.Rollback()
+	defer txServer.Rollback()
 
+	txDuck, err := duck.Begin()
+	if err != nil {
+		Write(writer, []byte("Server Error\n"))
+		errorLog.Println(err)
+		return
+	}
+	defer txDuck.Rollback()
+
+	txPg, err := postgres.Begin()
+	if err != nil {
+		Write(writer, []byte("Server Error\n"))
+		errorLog.Println(err)
+		return
+	}
+	defer txPg.Rollback()
 	// insert the key
-	_,err = transaction.Stmt(server.dbstmt["CreateKey"]).Exec(DBID, string(key))
+	_,err = txServer.Stmt(server.dbstmt["CreateKey"]).Exec(DBID, string(key))
 	if err != nil {
 		Write(writer, []byte("Server Error\n"))
 		errorLog.Println(err)
 		return
 	}
 	// insert the connstr
-	_,err = transaction.Stmt(server.dbstmt["CreateLink"]).Exec(DBID, encryptedConnStr)
+	_,err = txServer.Stmt(server.dbstmt["CreateLink"]).Exec(DBID, encryptedConnStr)
 	if err != nil {
 		Write(writer, []byte("Server Error\n"))
 		errorLog.Println(err)
@@ -158,14 +183,41 @@ func LinkHandler(privilege string, req []string, writer *bufio.Writer) {
 	Write(writer, []byte("successful Linking\n starting the schema migration....\n"))
 	
 	// migrate schema
-	err = internal.Migrate(DBID, connStr, transaction, server.dbstmt["CreateTable"], postgres, duck)
+	err = internal.Migrate(DBID, connStr, server.dbstmt["CreateTable"], txPg, txDuck, txServer)
 	if err != nil {
 		errorLog.Println(err)
 		Write(writer, []byte("Error while migrating"))
 		return
 	}
+
+	err = internal.Audit(txPg)
+	if err != nil {
+		errorLog.Println(err)
+		Write(writer, []byte("Error while migrating"))
+		return
+	}
+
+	err = txPg.Commit()
+	if err != nil {
+		errorLog.Println(err)
+		Write(writer, []byte("Error while migrating"))
+		return
+	}
+	err = txDuck.Commit()
+	if err != nil {
+		errorLog.Println(err)
+		Write(writer, []byte("Error while migrating"))
+		return
+	}
+	err = txServer.Commit()
+	if err != nil {
+		errorLog.Println(err)
+		Write(writer, []byte("Error while migrating"))
+		return
+	}
+
 	Write(writer, []byte("migration is successful"))
-	transaction.Commit()
+	
 }
 
 
@@ -187,8 +239,8 @@ func CreatHandler(privilege string, req []string, writer *bufio.Writer) {
 		return
 	}
 
-	if req[1] == "database" {
-		CreateDB(req[2], writer)
+	if req[0] == "database" {
+		CreateDB(req[1], writer)
 		return
 	}
 

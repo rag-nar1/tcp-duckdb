@@ -27,6 +27,7 @@ var preparedStmtStrings = [][]string{
 	{"CreateTable",         "INSERT OR IGNORE INTO tables(tablename, dbid) VALUES(?, ?);"},
 	{"CreateLink",          "INSERT OR IGNORE INTO postgres(dbid, connstr) VALUES(?, ?);"},
 	{"CreateKey",           "INSERT OR IGNORE INTO keys(dbid, key) VALUES(?, ?);"},
+	{"CheckLink",			"SELECT COUNT(*) FROM postgres WHERE dbid == ?;"},
 }
 
 var infoLog, errorLog *log.Logger
