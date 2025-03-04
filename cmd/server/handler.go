@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	_ "github.com/marcboeker/go-duckdb"
 )
@@ -72,7 +73,7 @@ func DBHandler(UID int, UserName, privilege string, reader *bufio.Reader, writer
 			LinkHandler(privilege, req[1:], writer)
 		}
 
-		MigrateHandler()
+		MigrateHandler(privilege, req[1:], writer)
 
 	}
 	
@@ -220,12 +221,68 @@ func LinkHandler(privilege string, req []string, writer *bufio.Writer) {
 	
 }
 
+func MigrateHandler(privilege string, req []string, writer *bufio.Writer) { // todo
+	if privilege != "super" {
+		Write(writer, []byte("Unauthorized\n"))
+		return
+	}
+	dbname := req[0]
+	// check the existince of the database
+	var DBID int
+	err := server.dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID)
+	if err != nil {
+		Write(writer, []byte("database: " + dbname + " does not exists\n"))
+		errorLog.Println(err)
+		return
+	}
+	var connStrEncrypted string
+	err = server.dbstmt["SelectLink"].QueryRow(DBID).Scan(&connStrEncrypted)
+	if err != nil {
+		Write(writer, []byte("database: " + dbname + " is not linked to any postgreSQL database\n"))
+		errorLog.Println(err)
+		return
+	}
+	var key string
+	err = server.dbstmt["SelectKey"].QueryRow(DBID).Scan(&key)
+	if err != nil {
+		Write(writer, []byte("database: " + dbname + " key is missing\n"))
+		errorLog.Println(err)
+		return
+	}
 
+	connStr, err := utils.Decrypt(connStrEncrypted, []byte(key))
+	if err != nil {
+		Write(writer, []byte("database: " + dbname + " wrong key or server error\n"))
+		errorLog.Println(err)
+		return
+	}
+	// open duckdb
+	duck, err := sqlx.Open("duckdb", os.Getenv("DBdir") + "/users/" + dbname + ".db")
+	if err != nil {
+		Write(writer, []byte("error while connecting to the duckdb database\n"))
+		errorLog.Println(err)
+		return
+	}
+	defer duck.Close()
 
+	postgres, err := sqlx.Open("postgres", connStr)
+	if err != nil {
+		Write(writer, []byte("database: " + dbname + " could not reach to postgreSQL\n"))
+		errorLog.Println(err)
+		return
+	}
+	defer postgres.Close()
 
-func MigrateHandler() { // todo
-    
+	if err := internal.ReadAudit(duck, postgres); err != nil {
+		Write(writer, []byte("database: " + dbname + " error while migrating\n"))
+		errorLog.Println(err)
+		return
+	}
+
+	Write(writer, []byte("migration is successful"))
 }
+
+
 // create database [dbname],
 // create user [dbname] [username] [password]
 func CreatHandler(privilege string, req []string, writer *bufio.Writer) {

@@ -2,12 +2,88 @@ package internal
 
 import (
 	"TCP-Duckdb/utils"
+	"context"
 	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"time"
+
+	"github.com/jmoiron/sqlx"
 )
+
+type JSONB map[string]interface{}
+// Value implements the driver.Valuer interface
+func (j JSONB) Value() (driver.Value, error) {
+    if j == nil {
+        return nil, nil
+    }
+    return json.Marshal(j)
+}
+
+// Scan implements the sql.Scanner interface
+func (j *JSONB) Scan(src interface{}) error {
+    if src == nil {
+        *j = nil
+        return nil
+    }
+
+    // Handle different possible source types
+    switch v := src.(type) {
+    case []byte:
+        if len(v) == 0 {
+            *j = nil
+            return nil
+        }
+        return json.Unmarshal(v, j)
+    case string:
+        if v == "" {
+            *j = nil
+            return nil
+        }
+        return json.Unmarshal([]byte(v), j)
+    default:
+        return fmt.Errorf("invalid type for JSONB")
+    }
+}
+
+func (j JSONB) Get() ([]string, []interface{}) {
+	columns := make([]string, len(j))
+	values := make([]interface{}, len(j))
+	i := 0
+	for k, v := range j {
+		columns[i] = k
+		values[i] = v
+		i ++
+	} 
+	return columns, values
+}
+
+type AuditRecord struct {
+    EventID          int64      `json:"event_id" db:"event_id"`          // BIGSERIAL PRIMARY KEY
+    SchemaName       string     `json:"schema_name" db:"schema_name"`    // TEXT NOT NULL
+    TableName        string     `json:"table_name" db:"table_name"`      // TEXT NOT NULL
+    TablePK          string     `json:"table_pk" db:"table_pk"`          // TEXT
+    TablePKColumn    string     `json:"table_pk_column" db:"table_pk_column"` // TEXT
+    ActionTimestamp  time.Time  `json:"action_tstamp" db:"action_tstamp"` // TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    Action           string     `json:"action" db:"action"`              // TEXT NOT NULL CHECK (action IN ('I','D','U','T'))
+    OriginalData     JSONB      `json:"original_data" db:"original_data"` // JSONB
+    NewData          JSONB      `json:"new_data" db:"new_data"`          // JSONB
+    ChangedFields    JSONB      `json:"changed_fields" db:"changed_fields"` // JSONB
+    TransactionID    *int64     `json:"transaction_id" db:"transaction_id"` // BIGINT (nullable)
+    ApplicationName  *string    `json:"application_name" db:"application_name"` // TEXT (nullable)
+    ClientAddr       *net.IP    `json:"client_addr" db:"client_addr"`    // INET (nullable)
+    ClientPort       *int32     `json:"client_port" db:"client_port"`    // INTEGER (nullable)
+    SessionUserName  *string    `json:"session_user_name" db:"session_user_name"` // TEXT (nullable)
+    CurrentUserName  *string    `json:"current_user_name" db:"current_user_name"` // TEXT (nullable)
+}
+
+
 type column struct {
 	name string
 	dataType string
@@ -93,4 +169,66 @@ func Audit(postgres *sql.Tx) error {
 		return err
 	}
 	return nil
+}
+
+func ReadAudit(duck, postgres *sqlx.DB) error {
+	var records []AuditRecord
+	err := postgres.Select(&records, "select * from audit.logged_actions;")
+	if err != nil {
+		return err
+	}
+	var ctx context.Context
+	transaction, err := duck.BeginTxx(ctx,&sql.TxOptions{ReadOnly: false, Isolation: sql.LevelDefault})
+	if err != nil {
+		return err
+	}
+	defer transaction.Rollback()
+
+	for i := range records {
+		switch records[i].Action {
+		case "I":
+			ApplyInsert(transaction, &records[i])
+		case "U":
+			ApplyUpdate()
+		case "D":
+			ApplyDelete()
+		case "T":
+			ApplyTrancate()
+		default:
+			return fmt.Errorf("Unsupported Action")
+		}
+	}
+
+	return nil
+}
+
+func GenPlaceHoldersForDuck(num int) string {
+	placeholders := make([]string,num)
+	for i := range placeholders {
+		placeholders[i] = "?"
+	}
+
+	res := strings.Join(placeholders, ",")
+	return res
+}
+
+func ApplyInsert(db *sqlx.Tx, record *AuditRecord) error {
+	query := "INSERT INTO %s(%s) VALUES(%s);"
+	keys, valuesInterfaces := record.NewData.Get()
+	columns := strings.Join(keys, ",")
+	query = fmt.Sprintf(query, record.TableName, columns, GenPlaceHoldersForDuck(len(keys)))
+	_, err := db.NamedExec(query,valuesInterfaces)
+	return err
+}
+
+func ApplyUpdate(db *sql.Tx, record *AuditRecord) error {
+	
+}
+
+func ApplyDelete(db *sql.Tx, record *AuditRecord) error {
+	
+}
+
+func ApplyTrancate(db *sql.Tx, record *AuditRecord) error {
+	
 }
