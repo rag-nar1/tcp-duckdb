@@ -3,7 +3,7 @@ SCRIPTS_DIR := scripts
 MSG ?= "Default commit message"
 
 build:
-	go build -o $(BUILD_DIR)/server cmd/server/*
+	go build -o $(BUILD_DIR)/server main/*
 
 run:
 	cd $(BUILD_DIR) && ./server
