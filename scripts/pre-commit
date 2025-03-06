@@ -1,0 +1,9 @@
+#!/bin/sh
+GO_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
+
+if [ -n "$GO_FILES" ]; then
+    echo -e "\033[32mFormatting code with go fmt...\033[0m"
+    go fmt $GO_FILES
+    git add $GO_FILES  # Stage formatted files
+fi
+

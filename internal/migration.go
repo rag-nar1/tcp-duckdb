@@ -10,7 +10,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -189,11 +188,11 @@ func ReadAudit(duck, postgres *sqlx.DB) error {
 		case "I":
 			ApplyInsert(transaction, &records[i])
 		case "U":
-			ApplyUpdate()
+			ApplyUpdate(transaction, &records[i])
 		case "D":
-			ApplyDelete()
+			ApplyDelete(transaction, &records[i])
 		case "T":
-			ApplyTrancate()
+			ApplyTrancate(transaction, &records[i])
 		default:
 			return fmt.Errorf("Unsupported Action")
 		}
@@ -203,11 +202,20 @@ func ReadAudit(duck, postgres *sqlx.DB) error {
 }
 
 func GenPlaceHoldersForDuck(num int) string {
-	placeholders := make([]string,num)
+	placeholders := make([]string, num)
 	for i := range placeholders {
 		placeholders[i] = "?"
 	}
 
+	res := strings.Join(placeholders, ",")
+	return res
+}
+
+func GenSetForDuck(keys []string) string {
+	placeholders := make([]string, len(keys))
+	for i := range placeholders {
+		placeholders[i] = keys[i] + " = ?"
+	}
 	res := strings.Join(placeholders, ",")
 	return res
 }
@@ -221,14 +229,27 @@ func ApplyInsert(db *sqlx.Tx, record *AuditRecord) error {
 	return err
 }
 
-func ApplyUpdate(db *sql.Tx, record *AuditRecord) error {
-	
+func ApplyUpdate(db *sqlx.Tx, record *AuditRecord) error {
+	query := "UPDATE %s SET %s WHERE %s;"
+	keys, valuesInterfaces := record.ChangedFields.Get()
+	predicate := fmt.Sprintf("%s = %s", record.TablePKColumn, record.TablePK)
+	columns := GenSetForDuck(keys)
+	query = fmt.Sprintf(query, record.TableName, columns, predicate)
+	_, err := db.NamedExec(query,valuesInterfaces)
+	return err
 }
 
-func ApplyDelete(db *sql.Tx, record *AuditRecord) error {
-	
+func ApplyDelete(db *sqlx.Tx, record *AuditRecord) error {
+	query := "DELETE FROM %s WHERE %s;"
+	predicate := fmt.Sprintf("%s = %s", record.TablePKColumn, record.TablePK)
+	query = fmt.Sprintf(query, record.TableName, predicate)
+	_, err := db.Exec(query)
+	return err
 }
 
-func ApplyTrancate(db *sql.Tx, record *AuditRecord) error {
-	
+func ApplyTrancate(db *sqlx.Tx, record *AuditRecord) error {
+	query := "TRUNCATE %s;"
+	query = fmt.Sprintf(query, record.TableName)
+	_, err := db.Exec(query)
+	return err
 }

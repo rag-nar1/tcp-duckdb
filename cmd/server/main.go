@@ -135,7 +135,7 @@ func NewServer() (error){
 func init() {
 	infoLog = log.New(os.Stdout, "INFO\t", log.Ldate | log.Ltime)
 	errorLog = log.New(os.Stdout, "ERROR\t", log.Ldate | log.Ltime | log.Lshortfile) 
-	err := godotenv.Load() // load environement variables
+	err := godotenv.Load("../.env") // load environement variables
 	if err != nil {
 		errorLog.Fatal(err)
 	}
