@@ -9,7 +9,7 @@
 - ##### you can not connect to a database which you are not authorized to access within the server.
 - ##### if connected successfully the response would be `"success"`
 - ##### this is the first step before executing queries and using the datbase.
-> [!Example]
+> [!TIP]
 > ```bash
 >   connect mydb
 > ```
