@@ -5,6 +5,7 @@
 >  ### **all commend needs to be sent in lower case.**
 
 ### `connect` $\rightarrow$ `$dbname$`
-- ####  using connect requires first to login.
-- #### you can not connect to a database which you are not authorized to access within the server.
-- #### if connected successfully the response would be `"success"`  
+- ##### using connect requires first to login.
+- ##### you can not connect to a database which you are not authorized to access within the server.
+- ##### if connected successfully the response would be `"success"`
+- ##### this is the first step before executing queries and using the datbase.

@@ -18,7 +18,7 @@ import (
 func QueryHandler(server *global.Server, query, username, dbname, privilege string, UID, DBID int, writer *bufio.Writer) {
 	db , err := sql.Open("duckdb", os.Getenv("DBdir") + "/users/" + dbname + ".db")
 	if err != nil {
-		Write(writer, []byte("SERVER ERROR\n"))
+		Error(writer, []byte("server error\n"))
 		server.ErrorLog.Println(err)
 		return
 	}
@@ -26,7 +26,7 @@ func QueryHandler(server *global.Server, query, username, dbname, privilege stri
 	data, err := Query(server, query, privilege, UID, DBID, db)
 	if err != nil{
 		server.ErrorLog.Println(err)
-		Write(writer, []byte("Error while executing query\n"))
+		Error(writer, []byte("Error while executing query\n"))
 		return
 	}
 
@@ -38,14 +38,14 @@ func Transaction(server *global.Server, UID, DBID int, dbname, privilege string,
     buffer := make([]byte, 4096)
     db , err := sql.Open("duckdb", os.Getenv("DBdir") + "/users/" + dbname + ".db")
     if err != nil {
-		Write(writer, []byte("SERVER ERROR\n"))
+		Error(writer, []byte("server error\n"))
 		server.ErrorLog.Println(err)
 		return
 	}
 
     transaction, err := db.Begin()
     if err != nil {
-		Write(writer, []byte("SERVER ERROR\n"))
+		Error(writer, []byte("server error\n"))
 		server.ErrorLog.Println(err)
 		return
 	}
@@ -54,7 +54,7 @@ func Transaction(server *global.Server, UID, DBID int, dbname, privilege string,
     for {
         n , err := reader.Read(buffer)
 		if err != nil {
-			Write(writer, []byte("ERROR: while reading\n"))
+			Error(writer, []byte("while reading\n"))
 			server.ErrorLog.Println("ERROR" , err)
 			return
 		}
@@ -67,7 +67,7 @@ func Transaction(server *global.Server, UID, DBID int, dbname, privilege string,
             err = transaction.Commit()
             if err != nil {
                 server.ErrorLog.Println(err)
-                Write(writer, []byte("Error while commiting transaction\n"))
+                Error(writer, []byte("Error while commiting transaction\n"))
             }
             return
         }
@@ -75,7 +75,7 @@ func Transaction(server *global.Server, UID, DBID int, dbname, privilege string,
         data, err := Query(server, query, privilege, UID, DBID, transaction)
         if err != nil{
 			server.ErrorLog.Println(err)
-			Write(writer, []byte("Error while executing query\n"))
+			Error(writer, []byte("Error while executing query\n"))
 			return
         }
 

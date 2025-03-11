@@ -18,27 +18,27 @@ func Handler(server *global.Server, UID int, UserName, privilege, dbname string,
 	// check for db existense
 	var DBID int
 	if err := server.Dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID); err != nil {
-		Write(writer, []byte("database: " + dbname + " does not exists\n"))
+		Error(writer, []byte("database: " + dbname + " does not exists\n"))
 		return
 	}
 
 	// check for authrization
 	var access int 
 	if err := server.Dbstmt["CheckDbAccess"].QueryRow(UID , DBID).Scan(&access); err != nil {
-		Write(writer, []byte("server error\n"))
+		Error(writer, []byte("server error\n"))
 		server.ErrorLog.Println(err)
 		return
 	}
 
 	if access == 0 && privilege != "super" {
-		Write(writer, []byte("user: " + UserName + " does not have access over database: " + dbname + "\n"))
+		Error(writer, []byte("user: " + UserName + " does not have access over database: " + dbname + "\n"))
 		return
 	}
 
 	buffer := make([]byte, 4096)
     _ , err := sql.Open("duckdb" , os.Getenv("DBdir") + "/users/" + dbname + ".db")
     if err != nil {
-        Write(writer, []byte("SERVER ERROR\n"))
+        Error(writer, []byte("server error\n"))
         server.ErrorLog.Println(err)
         return
     }
@@ -47,7 +47,7 @@ func Handler(server *global.Server, UID int, UserName, privilege, dbname string,
 	for {
 		n , err := reader.Read(buffer)
 		if err != nil {
-			Write(writer, []byte("ERROR: while reading\n"))
+			Error(writer, []byte("while reading\n"))
 			server.ErrorLog.Println(err)
 			return
 		}
@@ -56,7 +56,7 @@ func Handler(server *global.Server, UID int, UserName, privilege, dbname string,
 
         if query == "start" {
             if strings.ToLower(utils.Trim(string(buffer[0:n]))) != "start transaction" {
-                Write(writer, []byte("Bad Request\n"))
+                Error(writer, []byte("bad request\n"))
                 continue
             }
             Transaction(server, UID, DBID, dbname, privilege, reader, writer)
