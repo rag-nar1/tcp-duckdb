@@ -1,8 +1,9 @@
 package connect
 
 import (
-	global "TCP-Duckdb/server"
-	utils  "TCP-Duckdb/utils"
+	global 		"TCP-Duckdb/server"
+	utils  		"TCP-Duckdb/utils"
+	response 	"TCP-Duckdb/response"
 	"os"
 	"bufio"
 	"strings"
@@ -18,36 +19,36 @@ func Handler(server *global.Server, UID int, UserName, privilege, dbname string,
 	// check for db existense
 	var DBID int
 	if err := server.Dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID); err != nil {
-		Error(writer, []byte("database: " + dbname + " does not exists\n"))
+		response.DoesNotExistDatabse(writer)
 		return
 	}
 
 	// check for authrization
 	var access int 
 	if err := server.Dbstmt["CheckDbAccess"].QueryRow(UID , DBID).Scan(&access); err != nil {
-		Error(writer, []byte("server error\n"))
+		response.InternalError(writer)
 		server.ErrorLog.Println(err)
 		return
 	}
 
 	if access == 0 && privilege != "super" {
-		Error(writer, []byte("user: " + UserName + " does not have access over database: " + dbname + "\n"))
+		response.AccesDeniedOverDatabase(writer, UserName, dbname)
 		return
 	}
 
 	buffer := make([]byte, 4096)
     _ , err := sql.Open("duckdb" , os.Getenv("DBdir") + "/users/" + dbname + ".db")
     if err != nil {
-        Error(writer, []byte("server error\n"))
+        response.InternalError(writer)
         server.ErrorLog.Println(err)
         return
     }
-    Write(writer, []byte("success\n"))
+    response.Success(writer)
     
 	for {
 		n , err := reader.Read(buffer)
 		if err != nil {
-			Error(writer, []byte("while reading\n"))
+			response.InternalError(writer)
 			server.ErrorLog.Println(err)
 			return
 		}
@@ -56,16 +57,15 @@ func Handler(server *global.Server, UID int, UserName, privilege, dbname string,
 
         if query == "start" {
             if strings.ToLower(utils.Trim(string(buffer[0:n]))) != "start transaction" {
-                Error(writer, []byte("bad request\n"))
+                response.BadRequest(writer)
                 continue
             }
-            Transaction(server, UID, DBID, dbname, privilege, reader, writer)
+            Transaction(server, UID, DBID, UserName, dbname, privilege, reader, writer)
             continue
         }
 
         // single query
-        QueryHandler(server, utils.Trim(string(buffer[0:n])), UserName, dbname, privilege, UID, DBID, writer)
+        QueryService(server, utils.Trim(string(buffer[0:n])), UserName, dbname, privilege, UID, DBID, writer)
 	}
 
 }
-
