@@ -22,3 +22,8 @@
 - ##### requires first to login only as the super user `duck`.
 - ##### `database_name` and `username` are unique per server.
 - ##### creating a user does not gave him any access over any database in the server you need to grant him access using `grant` command
+> [!TIP]
+> ```bash
+>   create database mydb
+>   create user myuser 12345678
+> ```
