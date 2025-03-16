@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 650 200">
+  <!-- Background -->
+  <rect x="0" y="0" width="650" height="200" fill="#f8f9fa" rx="5" ry="5" />
+  
+  <!-- Start circle -->
+  <circle cx="50" cy="100" r="12" stroke="black" stroke-width="2" fill="white" />
+  
+  <!-- CREATE node -->
+  <ellipse cx="130" cy="100" rx="50" ry="25" stroke="black" stroke-width="2" fill="white" />
+  <text x="130" y="105" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle">Connect</text>
+  
+  <!-- Connection from start to CREATE -->
+  <line x1="61" y1="100" x2="80" y2="100" stroke="black" stroke-width="2" />
+
+  
+  <!-- Branch lines from CREATE -->
+  <line x1="180" y1="100" x2="200" y2="100" stroke="black" stroke-width="2" />
+ 
+  
+  <rect x="200" y="80" width="140" height="40" rx="5" ry="5" stroke="black" stroke-width="2" fill="white" />
+  <text x="270" y="105" font-family="Arial" font-size="14" text-anchor="middle">database-name</text>
+</svg>
