@@ -28,6 +28,10 @@ func QueryService(server *global.Server, query, username, dbname, privilege stri
 	data, err := Query(server, query, privilege, UID, DBID, db)
 	if err != nil{
 		server.ErrorLog.Println(err)
+		if err.Error() == response.UnauthorizedMSG {
+			response.UnauthorizedError(writer)
+			return
+		}
 		response.Error(writer, []byte(err.Error()))
 		return
 	}
@@ -132,11 +136,11 @@ func Access(server *global.Server, query, privilege string, UID, DBID int) (bool
 	if privilege != "super" {
 		hasDDL , err := internal.CheckDDLActions(query)
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("%s",response.UnauthorizedMSG);
 		}
 		hasaccess , err := internal.CheckAccesOverTable(server.Sqlitedb, server.Dbstmt["CheckTableAccess"], query, UID, DBID)
 		if err != nil {
-			return false, err
+			return false, fmt.Errorf("%s",response.UnauthorizedMSG)
 		}
         return (hasaccess && !hasDDL), nil
 	}

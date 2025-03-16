@@ -1,19 +1,20 @@
 package main
 
 import (
-	utils		"TCP-Duckdb/utils"
-	global 		"TCP-Duckdb/server"
-	connect 	"TCP-Duckdb/connect" 
-	create		"TCP-Duckdb/create"
-	internal 	"TCP-Duckdb/internal"
+	connect "TCP-Duckdb/connect"
+	create "TCP-Duckdb/create"
+	internal "TCP-Duckdb/internal"
+	"TCP-Duckdb/response"
+	global "TCP-Duckdb/server"
+	utils "TCP-Duckdb/utils"
 
-	"os"
-	"net"
 	"bufio"
-	"strconv"
-	"strings"
 	"crypto/rand"
 	"database/sql"
+	"net"
+	"os"
+	"strconv"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -48,7 +49,7 @@ func HandleConnection(conn net.Conn) {
 		global.Serv.ErrorLog.Println(err)
 		return	
 	}
-	utils.Write(writer, []byte("success\n"))
+	response.Success(writer)
 	DBHandler(UID, UserName, privilege, reader, writer)
 }
 
