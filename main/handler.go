@@ -1,19 +1,19 @@
 package main
 
 import (
-	connect "TCP-Duckdb/connect"
-	create "TCP-Duckdb/create"
-	internal "TCP-Duckdb/internal"
-	"TCP-Duckdb/response"
-	global "TCP-Duckdb/server"
-	utils "TCP-Duckdb/utils"
+	connect 	"TCP-Duckdb/connect"
+	create 		"TCP-Duckdb/create"
+	grant		"TCP-Duckdb/grant"
+	internal 	"TCP-Duckdb/internal"
+	response 	"TCP-Duckdb/response"
+	global 		"TCP-Duckdb/server"
+	utils 		"TCP-Duckdb/utils"
 
 	"bufio"
 	"crypto/rand"
 	"database/sql"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
@@ -38,7 +38,7 @@ func HandleConnection(conn net.Conn) {
 	var UserName , password , privilege string
 	var UID int
 	if request[0] != "login" || len(request) != 3 {
-		utils.Write(writer, []byte("ERROR: BAD request\n"))
+		response.BadRequest(writer)
 		return
 	}
 	// validate the username and password
@@ -81,13 +81,13 @@ func DBHandler(UID int, UserName, privilege string, reader *bufio.Reader, writer
 		utils.TrimList(req)
 		
 		if req[0] != "connect" && req[0] != "create" && req[0] != "grant" && req[0] != "migrate" && req[0] != "link" {
-			utils.Write(writer, []byte("ERROR: BAD request\n"))
+			response.BadRequest(writer)
 			continue
 		}
 		
 		if req[0] == "connect" {
 			if len(req) != 2 {
-				utils.Write(writer, []byte("ERROR: BAD request\n"))
+				response.BadRequest(writer)
 				continue
 			}
 			connect.Handler(global.Serv, UID, UserName, privilege, req[1], reader, writer) 
@@ -100,7 +100,7 @@ func DBHandler(UID int, UserName, privilege string, reader *bufio.Reader, writer
 		}
 		
 		if req[0] == "grant" {
-			GrantHandler(privilege, req[1:], writer)
+			grant.Handler(privilege, req[1:], writer)
 			continue
 		}
 
@@ -315,95 +315,4 @@ func MigrateHandler(privilege string, req []string, writer *bufio.Writer) { // t
 	}
 
 	utils.Write(writer, []byte("migration is successful"))
-}
-
-// grant database [dbname] [username] [accesstype] ,
-// grant table [dbname] [tablename] [username] [accesstype] 
-func GrantHandler(privilege string, req []string, writer *bufio.Writer) { 
-	if privilege != "super" {
-		utils.Write(writer, []byte("Unauthorized\n"))
-		return
-	}
-	if (req[0] != "database" && req[0] != "table") || (req[0] == "database" && len(req) != 4) || (req[0] == "table" && len(req) != 5) {
-		utils.Write(writer, []byte("ERROR: BAD request\n"))
-		return
-	}
-
-	if req[0] == "database" {
-		GrantDB(req[1], req[2], req[3], writer)
-		return
-	}
-
-	GrantTable(req[1], req[2], req[3], req[4], writer)
-}
-
-func GrantDB(dbname, username, accesstype string, writer *bufio.Writer) {
-	accesstype = strings.ToLower(accesstype)
-	// check for DB access
-	if accesstype != "read" && accesstype != "write" {
-		utils.Write(writer, []byte("unsupported Access\n"))
-		return
-	}
-	// get DBID , UID
-	var DBID, UID int
-	err := global.Serv.Dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID)
-	if err != nil {
-		utils.Write(writer, []byte("database: " + dbname + " does not exists\n"))
-		return
-	}
-
-	err = global.Serv.Dbstmt["SelectUser"].QueryRow(username).Scan(&UID)
-	if err != nil {
-		utils.Write(writer, []byte("user: " + username + " does not exists\n"))
-		return
-	}
-
-	// grant access
-
-	_, err = global.Serv.Dbstmt["GrantDB"].Exec(DBID, UID, accesstype)
-
-	if err != nil {
-        utils.Write(writer, []byte("global.Serv ERROR\n"))
-        global.Serv.ErrorLog.Println(err)
-        return
-    }
-
-	utils.Write(writer, []byte("success\n"))
-}
-
-func GrantTable(dbname, tablename, username, accesstype string, writer *bufio.Writer) {
-	accesstype = strings.ToLower(accesstype)
-	// check for DB access
-	if accesstype != "select" && accesstype != "insert" && accesstype != "update" && accesstype != "delete"{
-		utils.Write(writer, []byte("unsupported Access\n"))
-		return
-	}
-
-	var DBID, UID, TID int
-	err := global.Serv.Dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID)
-	if err != nil {
-		utils.Write(writer, []byte("database: " + dbname + " does not exists\n"))
-		return
-	}
-
-	err = global.Serv.Dbstmt["SelectUser"].QueryRow(username).Scan(&UID)
-	if err != nil {
-		utils.Write(writer, []byte("user: " + username + " does not exists\n"))
-		return
-	}
-
-	err = global.Serv.Dbstmt["SelectTable"].QueryRow(tablename, DBID).Scan(&TID)
-	if err != nil {
-		utils.Write(writer, []byte("table: " + tablename + " does not exists in database: " + strconv.Itoa(DBID) + "\n"))
-		return
-	}
-	
-	_, err = global.Serv.Dbstmt["GrantTable"].Exec(TID, UID, accesstype)
-	if err != nil {
-        utils.Write(writer, []byte("global.Serv ERROR\n"))
-        global.Serv.ErrorLog.Println(err)
-        return
-    }
-
-	utils.Write(writer, []byte("success\n"))
 }
