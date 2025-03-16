@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 650 200">
+  <!-- Background -->
+  <rect x="0" y="0" width="650" height="200" fill="#f8f9fa" rx="5" ry="5" />
+  
+  <!-- Start circle -->
+  <circle cx="50" cy="100" r="12" stroke="black" stroke-width="2" fill="white" />
+  
+  <!-- CREATE node -->
+  <ellipse cx="130" cy="100" rx="50" ry="25" stroke="black" stroke-width="2" fill="white" />
+  <text x="130" y="105" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle">CREATE</text>
+  
+  <!-- Connection from start to CREATE -->
+  <line x1="61" y1="100" x2="80" y2="100" stroke="black" stroke-width="2" />
+  <polygon points="368,60 375,57 375,63" fill="black" />
+  
+  <!-- Branch lines from CREATE -->
+  <line x1="180" y1="100" x2="200" y2="100" stroke="black" stroke-width="2" />
+  <line x1="200" y1="60" x2="200" y2="140" stroke="black" stroke-width="2" />
+  <line x1="200" y1="60" x2="230" y2="60" stroke="black" stroke-width="2" />
+  <line x1="200" y1="140" x2="260" y2="140" stroke="black" stroke-width="2" />
+  
+  <!-- DATABASE branch -->
+  <ellipse cx="285" cy="60" rx="55" ry="25" stroke="black" stroke-width="2" fill="white" />
+  <text x="285" y="65" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle">DATABASE</text>
+  
+  <line x1="340" y1="60" x2="370" y2="60" stroke="black" stroke-width="2" />
+  <polygon points="368,60 375,57 375,63" fill="black" />
+  
+  <rect x="375" y="40" width="140" height="40" rx="5" ry="5" stroke="black" stroke-width="2" fill="white" />
+  <text x="445" y="65" font-family="Arial" font-size="14" text-anchor="middle">database-name</text>
+  
+  <!-- USER branch -->
+  <ellipse cx="285" cy="140" rx="40" ry="25" stroke="black" stroke-width="2" fill="white" />
+  <text x="285" y="145" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle">USER</text>
+  
+  <line x1="325" y1="140" x2="355" y2="140" stroke="black" stroke-width="2" />
+  <polygon points="353,140 360,137 360,143" fill="black" />
+  
+  <rect x="360" y="120" width="110" height="40" rx="5" ry="5" stroke="black" stroke-width="2" fill="white" />
+  <text x="415" y="145" font-family="Arial" font-size="14" text-anchor="middle">username</text>
+  
+  <line x1="470" y1="140" x2="500" y2="140" stroke="black" stroke-width="2" />
+  <polygon points="498,140 505,137 505,143" fill="black" />
+  
+  <rect x="505" y="120" width="110" height="40" rx="5" ry="5" stroke="black" stroke-width="2" fill="white" />
+  <text x="560" y="145" font-family="Arial" font-size="14" text-anchor="middle">password</text>
+</svg>
