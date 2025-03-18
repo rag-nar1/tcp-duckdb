@@ -89,6 +89,5 @@ func GrantTable(writer *bufio.Writer, dbname, tablename, username string, access
 		}
 	}
 	
-
 	response.Success(writer)
 }

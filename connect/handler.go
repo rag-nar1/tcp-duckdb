@@ -19,7 +19,7 @@ func Handler(server *global.Server, UID int, UserName, privilege, dbname string,
 	// check for db existense
 	var DBID int
 	if err := server.Dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID); err != nil {
-		response.DoesNotExistDatabse(writer)
+		response.DoesNotExistDatabse(writer, dbname)
 		return
 	}
 
