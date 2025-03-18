@@ -8,6 +8,7 @@ import (
 	response 	"TCP-Duckdb/response"
 	global 		"TCP-Duckdb/server"
 	utils 		"TCP-Duckdb/utils"
+	login		"TCP-Duckdb/login"
 
 	"bufio"
 	"crypto/rand"
@@ -26,47 +27,20 @@ func HandleConnection(conn net.Conn) {
 	global.Serv.InfoLog.Println("Serving " + conn.RemoteAddr().String())
 	reader := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)
-	// read login request
-	route := make([]byte, 1024)
-	n , err := reader.Read(route)
-	if err != nil {
-		global.Serv.ErrorLog.Println(err)
+	var (
+		UID int
+		userName string
+		privilege string
+	)
+
+	if err := login.Handler(reader, writer, &UID, &userName, &privilege); err != nil {
 		return
 	}
-	// check for a valid request
-	request := strings.Split(string(route[0 : n]) , " ")
-	var UserName , password , privilege string
-	var UID int
-	if request[0] != "login" || len(request) != 3 {
-		response.BadRequest(writer)
-		return
-	}
-	// validate the username and password
-	UserName, password = utils.Trim(request[1]), utils.Trim(request[2]) 
-	UID, privilege, err = LoginHandler(UserName, password, global.Serv.Dbstmt["login"])
-	if err != nil {
-		utils.Write(writer, []byte("Unauthorized\n"))
-		global.Serv.ErrorLog.Println(err)
-		return	
-	}
-	response.Success(writer)
-	DBHandler(UID, UserName, privilege, reader, writer)
-}
-
-
-func LoginHandler(UserName, password string, Dbstmt *sql.Stmt) (int , string , error){
 	
-	var UID int
-	var privilige string
-	err := Dbstmt.QueryRow(UserName , utils.Hash(password)).Scan(&UID, &privilige)
-	if err != nil {
-		return -1 , "", err
-	}
-
-	return UID, privilige, nil
+	Router(UID, userName, privilege, reader, writer)
 }
 
-func DBHandler(UID int, UserName, privilege string, reader *bufio.Reader, writer *bufio.Writer) {
+func Router(UID int, UserName, privilege string, reader *bufio.Reader, writer *bufio.Writer) {
 	global.Serv.InfoLog.Println("Serving: " + UserName)
 	rawreq := make([]byte, 1024)
 	for {
