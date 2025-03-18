@@ -32,14 +32,30 @@ func GrantDB(writer *bufio.Writer, dbname, username, accesstype string) {
 	}
 
 	// grant access
-	_, err = global.Serv.Dbstmt["GrantDB"].Exec(DBID, UID, accesstype)
-
+	transaction, err := global.Serv.Sqlitedb.Begin()
 	if err != nil {
-        response.InternalError(writer)
+		response.InternalError(writer)
         global.Serv.ErrorLog.Println(err)
         return
-    }
+	}
+	defer transaction.Rollback()
+	if _, err := transaction.Stmt(global.Serv.Dbstmt["DeleteDbAccess"]).Exec(UID, DBID); err != nil {
+		response.InternalError(writer)
+        global.Serv.ErrorLog.Println(err)
+        return
+	}
 
+	if _, err := transaction.Stmt(global.Serv.Dbstmt["GrantDB"]).Exec(DBID, UID, accesstype); err != nil {
+		response.InternalError(writer)
+        global.Serv.ErrorLog.Println(err)
+        return
+	}
+
+	if err := transaction.Commit(); err != nil {
+		response.InternalError(writer)
+        global.Serv.ErrorLog.Println(err)
+        return
+	}
 	response.Success(writer)
 }
 
@@ -72,6 +88,22 @@ func GrantTable(writer *bufio.Writer, dbname, tablename, username string, access
 		return
 	}
 
+	var DbAccessType string
+	err = global.Serv.Dbstmt["DbAccessType"].QueryRow(UID, DBID).Scan(&DbAccessType)
+	if err != nil {
+		response.InternalError(writer)
+		return
+	}
+
+	if DbAccessType == "read" {
+		for _, accesstype := range accesstypes {
+			if accesstype != "select"{
+				response.UnauthorizedError(writer)
+				return
+			}
+		}
+	}
+
 	transaction, err := global.Serv.Sqlitedb.Begin()
 	if err != nil {
 		response.InternalError(writer)
@@ -81,12 +113,18 @@ func GrantTable(writer *bufio.Writer, dbname, tablename, username string, access
 	defer transaction.Rollback()
 
 	for _, accesstype := range accesstypes {
-		_, err = transaction.Stmt(global.Serv.Dbstmt["GrantTable"]).Exec(TID, UID, accesstype)
+		_, err := transaction.Stmt(global.Serv.Dbstmt["GrantTable"]).Exec(TID, UID, accesstype)
 		if err != nil {
 			response.InternalError(writer)
 			global.Serv.ErrorLog.Println(err)
 			return
 		}
+	}
+
+	if err := transaction.Commit(); err != nil {
+		response.InternalError(writer)
+		global.Serv.ErrorLog.Println(err)
+		return
 	}
 	
 	response.Success(writer)

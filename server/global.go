@@ -9,6 +9,8 @@ var preparedStmtStrings = [][]string{
 	{"CreateDB",            "INSERT INTO DB(dbname) VALUES(?);"},
 	{"GrantDB",             "INSERT OR IGNORE INTO dbprivilege(dbid, userid, privilegetype) VALUES(?, ?, ?);"},
 	{"CheckDbAccess",       "SELECT COUNT(*) FROM dbprivilege WHERE userid == ? AND dbid == ?"},
+	{"DbAccessType",		"SELECT privilegetype FROM dbprivilege WHERE userid == ? AND dbid == ?;"},
+	{"DeleteDbAccess",		"DELETE FROM dbprivilege Where userid == ? AND dbid == ?;"},
 	{"SelectTable",         "SELECT tableid FROM tables WHERE tablename LIKE ? AND dbid == ?;"},
 	{"CheckTableAccess",    "SELECT COUNT(*) FROM tableprivilege WHERE userid == ? AND tableid == ? AND tableprivilege LIKE ?;"},
 	{"GrantTable",          "INSERT OR IGNORE INTO tableprivilege(tableid, userid, tableprivilege) VALUES(?, ?, ?);"},

@@ -95,7 +95,7 @@ func CreateTable(conn *net.TCPConn, tablename string) error {
 		return err
 	}
 
-	if res := Read(conn); res != response.SuccessMsg {
+	if res := Read(conn); strings.HasPrefix(res, "ERROR") {
 		return fmt.Errorf("%s", res)
 	}
 	return nil
@@ -114,8 +114,33 @@ func ConnectDb(conn *net.TCPConn, dbname string) error {
 	return nil
 }
 
-func Grant(conn *net.TCPConn, username, dbname, privilege string) error {
+func Query(conn *net.TCPConn, query string) error {
+	_, err := conn.Write([]byte(query))
+	if err != nil {
+		return err
+	}
+	res := Read(conn)
+	if strings.HasPrefix(res, "Error") {
+		return fmt.Errorf("%s", res)
+	}
+	return nil
+}
+
+
+func GrantDb(conn *net.TCPConn, username, dbname, privilege string) error {
 	_, err := conn.Write([]byte(fmt.Sprintf("grant database %s %s %s", dbname, username, privilege)))
+	if err != nil {
+		return err
+	}
+	res := Read(conn)
+	if res != response.SuccessMsg {
+		return fmt.Errorf("%s", res)
+	}
+	return nil
+}
+
+func GrantTable(conn *net.TCPConn, username, dbname, tablename, privilege string) error {
+	_, err := conn.Write([]byte(fmt.Sprintf("grant table %s %s %s %s", dbname, tablename, username, privilege)))
 	if err != nil {
 		return err
 	}
@@ -141,9 +166,6 @@ func CleanUpDb(db *sql.DB, dbname string) error {
 
 	return nil
 }
-
-
-
 
 func CleanUpUsers(db *sql.DB) error {
 	

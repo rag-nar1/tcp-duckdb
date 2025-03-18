@@ -7,7 +7,6 @@ import (
 )
 
 func Error(w *bufio.Writer, msg []byte) error {
-	msg = append(msg, '\n')
 	msg = append([]byte("Error: "), msg...)
 	if _, err := w.Write(msg); err != nil {
         return err

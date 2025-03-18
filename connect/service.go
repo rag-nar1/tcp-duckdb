@@ -28,10 +28,14 @@ func QueryService(server *global.Server, query, username, dbname, privilege stri
 	data, err := Query(server, query, privilege, UID, DBID, db)
 	if err != nil{
 		server.ErrorLog.Println(err)
-		if err.Error() == response.UnauthorizedMSG {
+		if err.Error() == fmt.Errorf(response.UnauthorizedMSG).Error(){
 			response.UnauthorizedError(writer)
 			return
 		}
+		if err.Error() == fmt.Errorf(response.AccessDeniedMsg).Error() {
+			response.AccesDeniedOverTables(writer, username ,data)
+			return
+		} 
 		response.Error(writer, []byte(err.Error()))
 		return
 	}
@@ -80,13 +84,17 @@ func Transaction(server *global.Server, UID, DBID int, username, dbname, privile
         data, err := Query(server, query, privilege, UID, DBID, transaction)
         if err != nil{
 			server.ErrorLog.Println(err)
-			if err.Error() == response.AccessDeniedMsg {
-				response.AccesDeniedOverTables(writer, username ,data)
+			if err.Error() == fmt.Errorf(response.UnauthorizedMSG).Error(){
+				response.UnauthorizedError(writer)
+				return
 			}
+			if err.Error() == fmt.Errorf(response.AccessDeniedMsg).Error() {
+				response.AccesDeniedOverTables(writer, username ,data)
+				return
+			} 
 			response.Error(writer, []byte(err.Error()))
 			return
-        }
-
+		}
 		response.WriteData(writer, data)
     }
 

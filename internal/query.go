@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"strings"
+
 	"github.com/xwb1989/sqlparser"
 )
 
@@ -147,6 +148,7 @@ func CheckAccesOverTable(db *sql.DB, stmt *sql.Stmt, query string, UID, DBID int
 	if err != nil {
 		return false, err
 	}
+
 
 	var TID int
 	var cnt int
