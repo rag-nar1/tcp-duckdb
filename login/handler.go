@@ -14,6 +14,7 @@ func Handler(reader *bufio.Reader, writer *bufio.Writer, UID *int, userName, pri
 	route := make([]byte, 1024)
 	n , err := reader.Read(route)
 	if err != nil {
+		response.InternalError(writer)
 		global.Serv.ErrorLog.Println(err)
 		return err
 	}
@@ -29,7 +30,7 @@ func Handler(reader *bufio.Reader, writer *bufio.Writer, UID *int, userName, pri
 	*UID, *privilege, err = Login(*userName, password, global.Serv.Dbstmt["login"])
 
 	if err != nil {
-		utils.Write(writer, []byte("Unauthorized\n"))
+		response.UnauthorizedError(writer)
 		global.Serv.ErrorLog.Println(err)
 		return  err
 	}
