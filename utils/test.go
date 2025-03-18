@@ -13,13 +13,12 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func StartUp() (*net.TCPConn, error){
+func StartUp() (*net.TCPConn){
 	if err := godotenv.Load("../.env"); err != nil {
 		panic(err)
 	}
 	conn := Connection()
-	err := LoginAsAdmin(conn);
-	return conn, err
+	return conn
 }
 
 func Connection() *net.TCPConn {
@@ -38,6 +37,18 @@ func Connection() *net.TCPConn {
 
 func LoginAsAdmin(conn *net.TCPConn) error {
 	_, err := conn.Write([]byte("login duck duck"))
+	if err != nil {
+		return err
+	}
+	res := Read(conn)
+	if res != response.SuccessMsg {
+		return fmt.Errorf("unauth: %s", res)
+	}
+	return nil
+}
+
+func Login(conn *net.TCPConn, username, password string) error {
+	_, err := conn.Write([]byte(fmt.Sprintf("login %s %s", username, password)))
 	if err != nil {
 		return err
 	}

@@ -8,7 +8,8 @@ import (
 
 // TestCreateDb tests the creation of a new database.
 func TestCreateDb(t *testing.T) {
-	conn, err := utils.StartUp()
+	conn := utils.StartUp()
+	err := utils.LoginAsAdmin(conn)
 	assert.Nil(t, err) // Ensure no error during startup
 	err = utils.CreateDB(conn, "db1")
 	assert.Nil(t, err) // Ensure no error during database creation
@@ -18,7 +19,8 @@ func TestCreateDb(t *testing.T) {
 
 // TestAlreadyExists tests the behavior when trying to create a database that already exists.
 func TestCreateDbAlreadyExists(t *testing.T) {
-	conn, err := utils.StartUp()
+	conn := utils.StartUp()
+	err := utils.LoginAsAdmin(conn)
 	assert.Nil(t, err) // Ensure no error during startup
 	err = utils.CreateDB(conn, "db1")
 	assert.Nil(t, err) // Ensure no error during first database creation
@@ -30,7 +32,8 @@ func TestCreateDbAlreadyExists(t *testing.T) {
 
 // TestCreateDbAndConnect tests the creation of a new database and connecting to it.
 func TestCreateDbAndConnect(t *testing.T) {
-	conn, err := utils.StartUp()
+	conn := utils.StartUp()
+	err := utils.LoginAsAdmin(conn)
 	assert.Nil(t, err) // Ensure no error during startup
 	err = utils.CreateDB(conn, "db1")
 	assert.Nil(t, err) // Ensure no error during database creation
@@ -41,7 +44,8 @@ func TestCreateDbAndConnect(t *testing.T) {
 }
 // TestCreateUser tests the creation of a new user.
 func TestCreateUser(t *testing.T) {
-	conn, err := utils.StartUp()
+	conn := utils.StartUp()
+	err := utils.LoginAsAdmin(conn)
 	assert.Nil(t, err) // Ensure no error during startup
 	err = utils.CreateUser(conn, "ragnar", "ragnar")
 	assert.Nil(t, err) // Ensure no error during user creation
@@ -50,7 +54,8 @@ func TestCreateUser(t *testing.T) {
 
 // TestCreateUserAlreadyExists tests the behavior when trying to create a user that already exists.
 func TestCreateUserAlreadyExists(t *testing.T) {
-	conn, err := utils.StartUp()
+	conn := utils.StartUp()
+	err := utils.LoginAsAdmin(conn)
 	assert.Nil(t, err) // Ensure no error during startup
 	err = utils.CreateUser(conn, "ragnar", "ragnar")
 	assert.Nil(t, err) // Ensure no error during first user creation
