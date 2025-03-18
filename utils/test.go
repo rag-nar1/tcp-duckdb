@@ -90,7 +90,19 @@ func CreateUser(conn *net.TCPConn, userName, password string) error {
 	return nil
 }
 
-func ConnectDb(dbname string, conn *net.TCPConn) error {
+func CreateTable(conn *net.TCPConn, tablename string) error {
+	if _, err := conn.Write([]byte(fmt.Sprintf("CREATE TABLE %s(id int, name text);", tablename))); err != nil {
+		return err
+	}
+
+	if res := Read(conn); res != response.SuccessMsg {
+		return fmt.Errorf("%s", res)
+	}
+	return nil
+}
+
+
+func ConnectDb(conn *net.TCPConn, dbname string) error {
 	_, err := conn.Write([]byte("connect " + dbname))
 	if err != nil {
 		return err
@@ -102,13 +114,20 @@ func ConnectDb(dbname string, conn *net.TCPConn) error {
 	return nil
 }
 
-func CleanUpDb(dbname string) error {
-	if err := os.Remove(os.Getenv("DBdir") + "/users/" + dbname + ".db"); err != nil {
+func Grant(conn *net.TCPConn, username, dbname, privilege string) error {
+	_, err := conn.Write([]byte(fmt.Sprintf("grant database %s %s %s", dbname, username, privilege)))
+	if err != nil {
 		return err
 	}
+	res := Read(conn)
+	if res != response.SuccessMsg {
+		return fmt.Errorf("%s", res)
+	}
+	return nil
+}
 
-	db , err := sql.Open("sqlite3",os.Getenv("DBdir") + os.Getenv("ServerDbFile"))
-	if err != nil {
+func CleanUpDb(db *sql.DB, dbname string) error {
+	if err := os.Remove(os.Getenv("DBdir") + "/users/" + dbname + ".db"); err != nil {
 		return err
 	}
 
@@ -116,18 +135,59 @@ func CleanUpDb(dbname string) error {
 		return err
 	}
 
+	if _, err := db.Exec("DELETE FROM dbprivilege;"); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func CleanUpUsers() error {
+
+
+
+func CleanUpUsers(db *sql.DB) error {
+	
+	if _, err := db.Exec("DELETE FROM user WHERE usertype not like 'super';"); err != nil {
+		return err
+	}
+	
+	return nil
+}
+
+func CleanUpTables(db *sql.DB) error {
+
+	if _, err := db.Exec("DELETE FROM tables;"); err != nil {
+		return err
+	}
+
+	if _, err := db.Exec("DELETE FROM tableprivilege;"); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func CleanUp(dbname string) error {
 	db , err := sql.Open("sqlite3",os.Getenv("DBdir") + os.Getenv("ServerDbFile"))
 	if err != nil {
 		return err
 	}
 
-	if _, err := db.Exec("DELETE FROM user WHERE usertype not like 'super';"); err != nil {
+	if dbname == "" {
+		goto SkipDb
+	}
+
+	if err := CleanUpDb(db, dbname); err != nil {
 		return err
 	}
 
+SkipDb:
+	if err := CleanUpUsers(db); err != nil {
+		return err
+	}
+
+	if err := CleanUpTables(db); err != nil {
+		return err
+	}
 	return nil
 }

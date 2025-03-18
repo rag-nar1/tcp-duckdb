@@ -129,7 +129,7 @@ func Query(server *global.Server, query, privilege string, UID, DBID int, execut
 	data := []byte(strconv.Itoa(int(LastInsertedID)) + " " + strconv.Itoa(int(RowsAffected)) + "\n")
 	return data, nil
 }
-// todo: error handling here
+
 func Access(server *global.Server, query, privilege string, UID, DBID int) (bool, error){
     query = strings.ToLower(query)
 	
