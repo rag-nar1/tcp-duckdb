@@ -183,6 +183,8 @@ func ReadAudit(duck, postgres *sqlx.DB) error {
 	}
 	defer transaction.Rollback()
 
+	var maxTimeStamp time.Time 
+
 	for i := range records {
 		switch records[i].Action {
 		case "I":
@@ -196,6 +198,14 @@ func ReadAudit(duck, postgres *sqlx.DB) error {
 		default:
 			return fmt.Errorf("Unsupported Action")
 		}
+		if maxTimeStamp.Before(records[i].ActionTimestamp) {
+			maxTimeStamp = records[i].ActionTimestamp
+		}
+	}
+
+	// Delete all tuples where time stamp <= max
+	if _, err = transaction.Exec("DELETE FROM audit.logged_actions WHERE action_tstamp <= $1;", maxTimeStamp); err != nil {
+		return err
 	}
 
 	return nil
