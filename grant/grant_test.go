@@ -10,7 +10,7 @@ func TestBasicGrantOverDb(t *testing.T) {
 	dbname := "db1"
 	username := "ragnar"
 	password := "ragnar"
-	defer utils.CleanUp(dbname)
+	t.Cleanup(utils.CleanUp)
 
 	conn := utils.StartUp()
 	err := utils.LoginAsAdmin(conn)
@@ -37,7 +37,7 @@ func TestGrantInvalidPermission(t *testing.T) {
 	dbname := "db3"
 	username := "doe"
 	password := "doe"
-	defer utils.CleanUp(dbname)
+	t.Cleanup(utils.CleanUp)
 
 	conn := utils.StartUp()
 	err := utils.LoginAsAdmin(conn)
@@ -56,7 +56,7 @@ func TestGrantInvalidPermission(t *testing.T) {
 func TestGrantWithoutDb(t *testing.T) {
 	username := "alice"
 	password := "alice"
-	defer utils.CleanUp("")
+	t.Cleanup(utils.CleanUp)
 	conn := utils.StartUp()
 	err := utils.LoginAsAdmin(conn)
 	assert.Nil(t, err) // Ensure no error during startup
@@ -72,7 +72,7 @@ func TestGrantMultiplePermissions(t *testing.T) {
 	dbname := "db4"
 	username := "bob"
 	password := "bob"
-	defer utils.CleanUp(dbname)
+	t.Cleanup(utils.CleanUp)
 	conn := utils.StartUp()
 	err := utils.LoginAsAdmin(conn)
 	assert.Nil(t, err) // Ensure no error during startup
@@ -102,7 +102,7 @@ func TestGrantOverTable(t *testing.T) {
 	username := "bob"
 	password := "bob"
 	tablename := "t1"
-	defer utils.CleanUp(dbname)
+	t.Cleanup(utils.CleanUp)
 	conn := utils.StartUp()
 	err := utils.LoginAsAdmin(conn)
 	assert.Nil(t, err) // No error during startup

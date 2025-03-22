@@ -8,7 +8,7 @@ import (
 
 // TestCreateDb tests the creation of a new database.
 func TestCreateDb(t *testing.T) {
-	defer utils.CleanUp("db1")
+	t.Cleanup(utils.CleanUp)
 	conn := utils.StartUp()
 	err := utils.LoginAsAdmin(conn)
 	assert.Nil(t, err) // Ensure no error during startup
@@ -18,7 +18,7 @@ func TestCreateDb(t *testing.T) {
 
 // TestAlreadyExists tests the behavior when trying to create a database that already exists.
 func TestCreateDbAlreadyExists(t *testing.T) {
-	defer utils.CleanUp("db1")
+	t.Cleanup(utils.CleanUp)
 	conn := utils.StartUp()
 	err := utils.LoginAsAdmin(conn)
 	assert.Nil(t, err) // Ensure no error during startup
@@ -30,7 +30,7 @@ func TestCreateDbAlreadyExists(t *testing.T) {
 
 // TestCreateDbAndConnect tests the creation of a new database and connecting to it.
 func TestCreateDbAndConnect(t *testing.T) {
-	defer utils.CleanUp("db1")
+	t.Cleanup(utils.CleanUp)
 	conn := utils.StartUp()
 	err := utils.LoginAsAdmin(conn)
 	assert.Nil(t, err) // Ensure no error during startup
@@ -42,7 +42,7 @@ func TestCreateDbAndConnect(t *testing.T) {
 }
 // TestCreateUser tests the creation of a new user.
 func TestCreateUser(t *testing.T) {
-	defer utils.CleanUp("")
+	t.Cleanup(utils.CleanUp)
 	conn := utils.StartUp()
 	err := utils.LoginAsAdmin(conn)
 	assert.Nil(t, err) // Ensure no error during startup
@@ -52,7 +52,7 @@ func TestCreateUser(t *testing.T) {
 
 // TestCreateUserAlreadyExists tests the behavior when trying to create a user that already exists.
 func TestCreateUserAlreadyExists(t *testing.T) {
-	defer utils.CleanUp("")
+	t.Cleanup(utils.CleanUp)
 	conn := utils.StartUp()
 	err := utils.LoginAsAdmin(conn)
 	assert.Nil(t, err) // Ensure no error during startup

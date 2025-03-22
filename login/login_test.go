@@ -13,7 +13,7 @@ func TestLoginAsDuck(t *testing.T) {
 }
 
 func TestLogin(t *testing.T) {
-	defer utils.CleanUp("")
+	t.Cleanup(utils.CleanUp)
 	conn := utils.StartUp()
 	err := utils.LoginAsAdmin(conn)
 	assert.Nil(t, err)

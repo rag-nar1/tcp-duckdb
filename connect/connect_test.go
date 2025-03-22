@@ -12,7 +12,9 @@ func TestConnectBasic(t *testing.T) {
 	conn := utils.Connection()
 	err := utils.LoginAsAdmin(conn);
 	assert.Nil(t, err)
-	err = utils.ConnectDb(conn, "mydb")
+	err = utils.CreateDB(conn, "db1")
+	assert.Nil(t, err) 
+	err = utils.ConnectDb(conn, "db1")
 	assert.Nil(t, err)
 }
 
