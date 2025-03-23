@@ -3,13 +3,17 @@ package utils
 import (
 	// "bufio"
 	"TCP-Duckdb/response"
+	"database/sql"
 	"fmt"
+	"log"
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
-	"os"
-	"database/sql"
+
 	"github.com/joho/godotenv"
+	_ "github.com/lib/pq" // Import the PostgreSQL driver
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -123,6 +127,7 @@ func Query(conn *net.TCPConn, query string) error {
 	if strings.HasPrefix(res, "Error") {
 		return fmt.Errorf("%s", res)
 	}
+	log.Println(res)
 	return nil
 }
 
@@ -142,6 +147,7 @@ func GrantDb(conn *net.TCPConn, username, dbname, privilege string) error {
 func GrantTable(conn *net.TCPConn, username, dbname, tablename, privilege string) error {
 	_, err := conn.Write([]byte(fmt.Sprintf("grant table %s %s %s %s", dbname, tablename, username, privilege)))
 	if err != nil {
+
 		return err
 	}
 	res := Read(conn)
@@ -151,9 +157,17 @@ func GrantTable(conn *net.TCPConn, username, dbname, tablename, privilege string
 	return nil
 }
 
-func CleanUpDb(db *sql.DB, dbname string) error {
-	if err := os.Remove(os.Getenv("DBdir") + "/users/" + dbname + ".db"); err != nil {
+func CleanUpDb(db *sql.DB) error {
+	files, err := filepath.Glob("../storge/users/*")
+	if err != nil {
 		return err
+	}
+
+	for _, file := range files {
+		err := os.Remove(file)
+		if err != nil {
+			return err
+		}
 	}
 
 	if _, err := db.Exec("DELETE FROM DB;"); err != nil {
@@ -161,6 +175,9 @@ func CleanUpDb(db *sql.DB, dbname string) error {
 	}
 
 	if _, err := db.Exec("DELETE FROM dbprivilege;"); err != nil {
+		return err
+	}
+	if _, err := db.Exec("DELETE FROM postgres;"); err != nil {
 		return err
 	}
 
@@ -189,27 +206,73 @@ func CleanUpTables(db *sql.DB) error {
 	return nil
 }
 
-func CleanUp(dbname string) error {
-	db , err := sql.Open("sqlite3",os.Getenv("DBdir") + os.Getenv("ServerDbFile"))
+func CleanUp() {
+	db , err := sql.Open("sqlite3","../storge/server/db.sqlite3")
 	if err != nil {
-		return err
+		log.Fatal(err)
+		 
+	}
+	defer db.Close()
+
+	if err := CleanUpDb(db); err != nil {
+		log.Fatal(err)
+		 
 	}
 
-	if dbname == "" {
-		goto SkipDb
-	}
-
-	if err := CleanUpDb(db, dbname); err != nil {
-		return err
-	}
-
-SkipDb:
 	if err := CleanUpUsers(db); err != nil {
-		return err
+		log.Fatal(err)
+		 
 	}
 
 	if err := CleanUpTables(db); err != nil {
+		log.Fatal(err)
+		 
+	}
+	if err := CleanUpLink(); err != nil {
+		log.Fatal(err)
+		
+	}
+}
+
+func Link(conn *net.TCPConn, dbname, connStr string) error {
+	if _, err := conn.Write([]byte(fmt.Sprintf("link %s %s", dbname, connStr))); err != nil {
 		return err
+	}
+	res := Read(conn)
+	if strings.HasPrefix(res, "Error") {
+		return fmt.Errorf("%s", res)
+	}
+	return nil
+}
+
+func CleanUpLink() error {
+	pq , err := sql.Open("postgres", "postgresql://postgres:1242003@localhost:5432")
+	if err != nil {
+		return err
+	}
+	defer pq.Close()
+
+	if _, err := pq.Exec("Drop database testdb;"); err != nil {
+		return err
+	}
+	if _, err := pq.Exec("create database testdb;"); err != nil {
+		return err
+	}
+	pq, err = sql.Open("postgres", "postgresql://postgres:1242003@localhost:5432/testdb")
+	if err != nil {
+		return err
+	}
+	defer pq.Close()
+
+	for _,t := range []string{"t1", "t2", "t3"} {
+		if _, err := pq.Exec(fmt.Sprintf("create table %s(id int);", t)); err != nil {
+			return err
+		}
+		for i := 1; i <= 3; i ++ {
+			if _, err := pq.Exec(fmt.Sprintf("insert into %s(id) values(%d);", t,i)); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

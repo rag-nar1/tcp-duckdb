@@ -4,6 +4,7 @@ import (
 	connect 	"TCP-Duckdb/connect"
 	create 		"TCP-Duckdb/create"
 	grant		"TCP-Duckdb/grant"
+	link		"TCP-Duckdb/link"
 	internal 	"TCP-Duckdb/internal"
 	response 	"TCP-Duckdb/response"
 	global 		"TCP-Duckdb/server"
@@ -11,8 +12,6 @@ import (
 	login		"TCP-Duckdb/login"
 
 	"bufio"
-	"crypto/rand"
-	"database/sql"
 	"net"
 	"os"
 	"strings"
@@ -46,8 +45,9 @@ func Router(UID int, UserName, privilege string, reader *bufio.Reader, writer *b
 	for {
 		n , err := reader.Read(rawreq)
 		if err != nil {
-			utils.Write(writer, []byte("ERROR: while reading\n"))
+			response.InternalError(writer)
 			global.Serv.ErrorLog.Println(err)
+			global.Serv.InfoLog.Println("Connection closed")
 			return
 		}
 
@@ -79,156 +79,16 @@ func Router(UID int, UserName, privilege string, reader *bufio.Reader, writer *b
 		}
 
 		if req[0] == "link" {
-			LinkHandler(privilege, req[1:], writer)
+			link.Handler(privilege, req[1:], writer)
 		}
 
-		MigrateHandler(privilege, req[1:], writer)
-
+		if req[0] == "migrate" {
+			MigrateHandler(privilege, req[1:], writer)
+		}
 	}
 	
 }
-// link dbname connStr
-func LinkHandler(privilege string, req []string, writer *bufio.Writer) {
-	if privilege != "super" {
-		utils.Write(writer, []byte("Unauthorized\n"))
-		return
-	}
 
-	dbname, connStr := req[0], req[1]
-	// check the existince of the database
-	var DBID int
-	err := global.Serv.Dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID)
-	if err != nil {
-		utils.Write(writer, []byte("database: " + dbname + " does not exists\n"))
-		global.Serv.ErrorLog.Println(err)
-		return
-	}
-	var hasLink int
-	err = global.Serv.Dbstmt["CheckLink"].QueryRow(DBID).Scan(&hasLink)
-	if err != nil || hasLink > 0 {
-		utils.Write(writer, []byte("database: " + dbname + " already linked\n"))
-		global.Serv.ErrorLog.Println(err)
-		return
-	}
-
-	// open duckdb
-	duck, err := sql.Open("duckdb", os.Getenv("DBdir") + "/users/" + dbname + ".db")
-	if err != nil {
-		utils.Write(writer, []byte("error while connecting to the duckdb database\n"))
-		global.Serv.ErrorLog.Println(err)
-		return
-	}
-	defer duck.Close()
-
-	// check the connStr
-	postgres, err := sql.Open("postgres", connStr)
-	if err != nil {
-		utils.Write(writer, []byte("error while connecting to the postgresql database\n"))
-		global.Serv.ErrorLog.Println(err)
-		return
-	}
-	defer postgres.Close()
-
-	err = postgres.Ping()
-	if err != nil {
-		utils.Write(writer, []byte("error while connecting to the postgresql database\n"))
-		global.Serv.ErrorLog.Println(err)
-		return
-	}
-
-	// generete random 32 byte key for encryption
-	key := make([]byte, 32)
-	_, err = rand.Read(key)
-	if err != nil {
-		utils.Write(writer, []byte("global.Serv Error\n"))
-		global.Serv.ErrorLog.Println(err)
-		return
-	}
-
-	encryptedConnStr , err := utils.Encrypt(connStr, key)
-	if err != nil {
-		utils.Write(writer, []byte("global.Serv Error\n"))
-		global.Serv.ErrorLog.Println(err)
-		return
-	}
-
-	// start a transaction to insert the key and the connstr
-	txServer, err := global.Serv.Sqlitedb.Begin()
-	if err != nil {
-		utils.Write(writer, []byte("global.Serv Error\n"))
-		global.Serv.ErrorLog.Println(err)
-		return
-	}
-	defer txServer.Rollback()
-
-	txDuck, err := duck.Begin()
-	if err != nil {
-		utils.Write(writer, []byte("global.Serv Error\n"))
-		global.Serv.ErrorLog.Println(err)
-		return
-	}
-	defer txDuck.Rollback()
-
-	txPg, err := postgres.Begin()
-	if err != nil {
-		utils.Write(writer, []byte("global.Serv Error\n"))
-		global.Serv.ErrorLog.Println(err)
-		return
-	}
-	defer txPg.Rollback()
-	// insert the key
-	_,err = txServer.Stmt(global.Serv.Dbstmt["CreateKey"]).Exec(DBID, string(key))
-	if err != nil {
-		utils.Write(writer, []byte("global.Serv Error\n"))
-		global.Serv.ErrorLog.Println(err)
-		return
-	}
-	// insert the connstr
-	_,err = txServer.Stmt(global.Serv.Dbstmt["CreateLink"]).Exec(DBID, encryptedConnStr)
-	if err != nil {
-		utils.Write(writer, []byte("global.Serv Error\n"))
-		global.Serv.ErrorLog.Println(err)
-		return
-	}
-	utils.Write(writer, []byte("successful Linking\n starting the schema migration....\n"))
-	
-	// migrate schema
-	err = internal.Migrate(DBID, connStr, global.Serv.Dbstmt["CreateTable"], txPg, txDuck, txServer)
-	if err != nil {
-		global.Serv.ErrorLog.Println(err)
-		utils.Write(writer, []byte("Error while migrating"))
-		return
-	}
-
-	err = internal.Audit(txPg)
-	if err != nil {
-		global.Serv.ErrorLog.Println(err)
-		utils.Write(writer, []byte("Error while migrating"))
-		return
-	}
-
-	err = txPg.Commit()
-	if err != nil {
-		global.Serv.ErrorLog.Println(err)
-		utils.Write(writer, []byte("Error while migrating"))
-		return
-	}
-	err = txDuck.Commit()
-	if err != nil {
-		global.Serv.ErrorLog.Println(err)
-		utils.Write(writer, []byte("Error while migrating"))
-		return
-	}
-	err = txServer.Commit()
-	if err != nil {
-		global.Serv.ErrorLog.Println(err)
-		utils.Write(writer, []byte("Error while migrating"))
-		return
-	}
-
-	utils.Write(writer, []byte("migration is successful"))
-	
-}
 
 func MigrateHandler(privilege string, req []string, writer *bufio.Writer) { // todo
 	if privilege != "super" {
