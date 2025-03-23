@@ -5,7 +5,7 @@ import (
 	create 		"TCP-Duckdb/create"
 	grant		"TCP-Duckdb/grant"
 	link		"TCP-Duckdb/link"
-	internal 	"TCP-Duckdb/internal"
+	migrate 	"TCP-Duckdb/migrate"
 	response 	"TCP-Duckdb/response"
 	global 		"TCP-Duckdb/server"
 	utils 		"TCP-Duckdb/utils"
@@ -13,10 +13,8 @@ import (
 
 	"bufio"
 	"net"
-	"os"
 	"strings"
 
-	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	_ "github.com/marcboeker/go-duckdb"
 )
@@ -83,70 +81,8 @@ func Router(UID int, UserName, privilege string, reader *bufio.Reader, writer *b
 		}
 
 		if req[0] == "migrate" {
-			MigrateHandler(privilege, req[1:], writer)
+			migrate.Handler(privilege, req[1:], writer)
 		}
 	}
 	
-}
-
-
-func MigrateHandler(privilege string, req []string, writer *bufio.Writer) { // todo
-	if privilege != "super" {
-		utils.Write(writer, []byte("Unauthorized\n"))
-		return
-	}
-	dbname := req[0]
-	// check the existince of the database
-	var DBID int
-	err := global.Serv.Dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID)
-	if err != nil {
-		utils.Write(writer, []byte("database: " + dbname + " does not exists\n"))
-		global.Serv.ErrorLog.Println(err)
-		return
-	}
-	var connStrEncrypted string
-	err = global.Serv.Dbstmt["SelectLink"].QueryRow(DBID).Scan(&connStrEncrypted)
-	if err != nil {
-		utils.Write(writer, []byte("database: " + dbname + " is not linked to any postgreSQL database\n"))
-		global.Serv.ErrorLog.Println(err)
-		return
-	}
-	var key string
-	err = global.Serv.Dbstmt["SelectKey"].QueryRow(DBID).Scan(&key)
-	if err != nil {
-		utils.Write(writer, []byte("database: " + dbname + " key is missing\n"))
-		global.Serv.ErrorLog.Println(err)
-		return
-	}
-
-	connStr, err := utils.Decrypt(connStrEncrypted, []byte(key))
-	if err != nil {
-		utils.Write(writer, []byte("database: " + dbname + " wrong key or global.Serv error\n"))
-		global.Serv.ErrorLog.Println(err)
-		return
-	}
-	// open duckdb
-	duck, err := sqlx.Open("duckdb", os.Getenv("DBdir") + "/users/" + dbname + ".db")
-	if err != nil {
-		utils.Write(writer, []byte("error while connecting to the duckdb database\n"))
-		global.Serv.ErrorLog.Println(err)
-		return
-	}
-	defer duck.Close()
-
-	postgres, err := sqlx.Open("postgres", connStr)
-	if err != nil {
-		utils.Write(writer, []byte("database: " + dbname + " could not reach to postgreSQL\n"))
-		global.Serv.ErrorLog.Println(err)
-		return
-	}
-	defer postgres.Close()
-
-	if err := internal.ReadAudit(duck, postgres); err != nil {
-		utils.Write(writer, []byte("database: " + dbname + " error while migrating\n"))
-		global.Serv.ErrorLog.Println(err)
-		return
-	}
-
-	utils.Write(writer, []byte("migration is successful"))
 }

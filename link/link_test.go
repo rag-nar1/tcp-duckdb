@@ -6,9 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	_ "github.com/lib/pq"
-	_ "github.com/marcboeker/go-duckdb"
 )
 
 // TestBasicLink tests the basic linking of a database

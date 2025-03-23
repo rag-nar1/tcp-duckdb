@@ -127,10 +127,20 @@ func Query(conn *net.TCPConn, query string) error {
 	if strings.HasPrefix(res, "Error") {
 		return fmt.Errorf("%s", res)
 	}
-	log.Println(res)
 	return nil
 }
 
+func QueryData(conn *net.TCPConn, query string) (string, error) {
+	_, err := conn.Write([]byte(query))
+	if err != nil {
+		return "", err
+	}
+	res := Read(conn)
+	if strings.HasPrefix(res, "Error") {
+		return "", fmt.Errorf("%s", res)
+	}
+	return res, nil
+}
 
 func GrantDb(conn *net.TCPConn, username, dbname, privilege string) error {
 	_, err := conn.Write([]byte(fmt.Sprintf("grant database %s %s %s", dbname, username, privilege)))
@@ -265,7 +275,7 @@ func CleanUpLink() error {
 	defer pq.Close()
 
 	for _,t := range []string{"t1", "t2", "t3"} {
-		if _, err := pq.Exec(fmt.Sprintf("create table %s(id int);", t)); err != nil {
+		if _, err := pq.Exec(fmt.Sprintf("create table %s(id int primary key);", t)); err != nil {
 			return err
 		}
 		for i := 1; i <= 3; i ++ {
@@ -273,6 +283,17 @@ func CleanUpLink() error {
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+func Migrate(conn *net.TCPConn, dbname string) error {
+	if _, err := conn.Write([]byte(fmt.Sprintf("migrate %s", dbname))); err != nil {
+		return err
+	}
+	res := Read(conn)
+	if strings.HasPrefix(res, "Error") {
+		return fmt.Errorf("%s", res)
 	}
 	return nil
 }
