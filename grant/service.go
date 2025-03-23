@@ -1,10 +1,9 @@
 package grant
 
-
 import (
-	response	"TCP-Duckdb/response"
-	global 		"TCP-Duckdb/server"
-	utils 		"TCP-Duckdb/utils"
+	response "github.com/rag-nar1/TCP-Duckdb/response"
+	global "github.com/rag-nar1/TCP-Duckdb/server"
+	utils "github.com/rag-nar1/TCP-Duckdb/utils"
 
 	"bufio"
 	"strings"
@@ -21,7 +20,7 @@ func GrantDB(writer *bufio.Writer, dbname, username, accesstype string) {
 	var DBID, UID int
 	err := global.Serv.Dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID)
 	if err != nil {
-		response.DoesNotExistDatabse(writer,dbname)
+		response.DoesNotExistDatabse(writer, dbname)
 		return
 	}
 
@@ -35,26 +34,26 @@ func GrantDB(writer *bufio.Writer, dbname, username, accesstype string) {
 	transaction, err := global.Serv.Sqlitedb.Begin()
 	if err != nil {
 		response.InternalError(writer)
-        global.Serv.ErrorLog.Println(err)
-        return
+		global.Serv.ErrorLog.Println(err)
+		return
 	}
 	defer transaction.Rollback()
 	if _, err := transaction.Stmt(global.Serv.Dbstmt["DeleteDbAccess"]).Exec(UID, DBID); err != nil {
 		response.InternalError(writer)
-        global.Serv.ErrorLog.Println(err)
-        return
+		global.Serv.ErrorLog.Println(err)
+		return
 	}
 
 	if _, err := transaction.Stmt(global.Serv.Dbstmt["GrantDB"]).Exec(DBID, UID, accesstype); err != nil {
 		response.InternalError(writer)
-        global.Serv.ErrorLog.Println(err)
-        return
+		global.Serv.ErrorLog.Println(err)
+		return
 	}
 
 	if err := transaction.Commit(); err != nil {
 		response.InternalError(writer)
-        global.Serv.ErrorLog.Println(err)
-        return
+		global.Serv.ErrorLog.Println(err)
+		return
 	}
 	response.Success(writer)
 }
@@ -63,7 +62,7 @@ func GrantTable(writer *bufio.Writer, dbname, tablename, username string, access
 	accesstypes = utils.ToLower(accesstypes...)
 	// check for DB access
 	for _, accesstype := range accesstypes {
-		if accesstype != "select" && accesstype != "insert" && accesstype != "update" && accesstype != "delete"{
+		if accesstype != "select" && accesstype != "insert" && accesstype != "update" && accesstype != "delete" {
 			response.BadRequest(writer)
 			return
 		}
@@ -72,7 +71,7 @@ func GrantTable(writer *bufio.Writer, dbname, tablename, username string, access
 	var DBID, UID, TID int
 	err := global.Serv.Dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID)
 	if err != nil {
-		response.DoesNotExistDatabse(writer,dbname)
+		response.DoesNotExistDatabse(writer, dbname)
 		return
 	}
 
@@ -97,7 +96,7 @@ func GrantTable(writer *bufio.Writer, dbname, tablename, username string, access
 
 	if DbAccessType == "read" {
 		for _, accesstype := range accesstypes {
-			if accesstype != "select"{
+			if accesstype != "select" {
 				response.UnauthorizedError(writer)
 				return
 			}
@@ -126,6 +125,6 @@ func GrantTable(writer *bufio.Writer, dbname, tablename, username string, access
 		global.Serv.ErrorLog.Println(err)
 		return
 	}
-	
+
 	response.Success(writer)
 }

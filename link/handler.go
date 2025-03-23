@@ -1,8 +1,8 @@
 package link
 
 import (
-	response 	"TCP-Duckdb/response"
-	global 		"TCP-Duckdb/server"
+	response "github.com/rag-nar1/TCP-Duckdb/response"
+	global "github.com/rag-nar1/TCP-Duckdb/server"
 
 	"bufio"
 	"database/sql"
@@ -32,13 +32,13 @@ func Handler(privilege string, req []string, writer *bufio.Writer) {
 	var hasLink int
 	err = global.Serv.Dbstmt["CheckLink"].QueryRow(DBID).Scan(&hasLink)
 	if err != nil || hasLink > 0 {
-		response.Error(writer, []byte("database: " + dbname + " already linked"))
+		response.Error(writer, []byte("database: "+dbname+" already linked"))
 		global.Serv.ErrorLog.Println(err)
 		return
 	}
 
 	// open duckdb
-	duck, err := sql.Open("duckdb", os.Getenv("DBdir") + "/users/" + dbname + ".db")
+	duck, err := sql.Open("duckdb", os.Getenv("DBdir")+"/users/"+dbname+".db")
 	if err != nil {
 		response.InternalError(writer)
 		global.Serv.ErrorLog.Println(err)

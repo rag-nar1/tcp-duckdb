@@ -21,7 +21,7 @@ commit: format
 
 push: commit
 	echo "\033[32mpushing to remote repo...\033[0m"
-	@git push git@github.com:rag-nar1/TCP-Duckdb.git
+	@git push git@github.com:rag-nar1/github.com/rag-nar1/TCP-Duckdb.git
 
 clean:
 	rm -rf $(BUILD_DIR)/*

@@ -1,7 +1,7 @@
 package create
 
 import (
-	response	"TCP-Duckdb/response"
+	response "github.com/rag-nar1/TCP-Duckdb/response"
 
 	"bufio"
 
@@ -26,5 +26,5 @@ func Handler(privilege string, req []string, writer *bufio.Writer) {
 		CreateDB(req[1], writer)
 		return
 	}
-	CreateUser(req[1], req[2], writer) 
+	CreateUser(req[1], req[2], writer)
 }

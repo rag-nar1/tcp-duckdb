@@ -1,15 +1,15 @@
 package main
 
 import (
-	connect 	"TCP-Duckdb/connect"
-	create 		"TCP-Duckdb/create"
-	grant		"TCP-Duckdb/grant"
-	link		"TCP-Duckdb/link"
-	migrate 	"TCP-Duckdb/migrate"
-	response 	"TCP-Duckdb/response"
-	global 		"TCP-Duckdb/server"
-	utils 		"TCP-Duckdb/utils"
-	login		"TCP-Duckdb/login"
+	connect "github.com/rag-nar1/TCP-Duckdb/connect"
+	create "github.com/rag-nar1/TCP-Duckdb/create"
+	grant "github.com/rag-nar1/TCP-Duckdb/grant"
+	link "github.com/rag-nar1/TCP-Duckdb/link"
+	login "github.com/rag-nar1/TCP-Duckdb/login"
+	migrate "github.com/rag-nar1/TCP-Duckdb/migrate"
+	response "github.com/rag-nar1/TCP-Duckdb/response"
+	global "github.com/rag-nar1/TCP-Duckdb/server"
+	utils "github.com/rag-nar1/TCP-Duckdb/utils"
 
 	"bufio"
 	"net"
@@ -25,15 +25,15 @@ func HandleConnection(conn net.Conn) {
 	reader := bufio.NewReader(conn)
 	writer := bufio.NewWriter(conn)
 	var (
-		UID int
-		userName string
+		UID       int
+		userName  string
 		privilege string
 	)
 
 	if err := login.Handler(reader, writer, &UID, &userName, &privilege); err != nil {
 		return
 	}
-	
+
 	Router(UID, userName, privilege, reader, writer)
 }
 
@@ -41,7 +41,7 @@ func Router(UID int, UserName, privilege string, reader *bufio.Reader, writer *b
 	global.Serv.InfoLog.Println("Serving: " + UserName)
 	rawreq := make([]byte, 1024)
 	for {
-		n , err := reader.Read(rawreq)
+		n, err := reader.Read(rawreq)
 		if err != nil {
 			response.InternalError(writer)
 			global.Serv.ErrorLog.Println(err)
@@ -49,28 +49,28 @@ func Router(UID int, UserName, privilege string, reader *bufio.Reader, writer *b
 			return
 		}
 
-		req := strings.Split(string(rawreq[0:n]) , " ")
+		req := strings.Split(string(rawreq[0:n]), " ")
 		utils.TrimList(req)
-		
+
 		if req[0] != "connect" && req[0] != "create" && req[0] != "grant" && req[0] != "migrate" && req[0] != "link" {
 			response.BadRequest(writer)
 			continue
 		}
-		
+
 		if req[0] == "connect" {
 			if len(req) != 2 {
 				response.BadRequest(writer)
 				continue
 			}
-			connect.Handler(global.Serv, UID, UserName, privilege, req[1], reader, writer) 
+			connect.Handler(global.Serv, UID, UserName, privilege, req[1], reader, writer)
 			continue
 		}
-		
+
 		if req[0] == "create" {
 			create.Handler(privilege, req[1:], writer)
 			continue
 		}
-		
+
 		if req[0] == "grant" {
 			grant.Handler(privilege, req[1:], writer)
 			continue
@@ -84,5 +84,5 @@ func Router(UID int, UserName, privilege string, reader *bufio.Reader, writer *b
 			migrate.Handler(privilege, req[1:], writer)
 		}
 	}
-	
+
 }

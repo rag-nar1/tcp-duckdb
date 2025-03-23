@@ -1,21 +1,22 @@
 package link
 
 import (
-	internal 	"TCP-Duckdb/internal"
-	response 	"TCP-Duckdb/response"
-	global 		"TCP-Duckdb/server"
-	utils 		"TCP-Duckdb/utils"
+	internal "github.com/rag-nar1/TCP-Duckdb/internal"
+	response "github.com/rag-nar1/TCP-Duckdb/response"
+	global "github.com/rag-nar1/TCP-Duckdb/server"
+	utils "github.com/rag-nar1/TCP-Duckdb/utils"
 
-	"os"
 	"bufio"
 	"database/sql"
+	"os"
 
 	_ "github.com/lib/pq"
 	_ "github.com/marcboeker/go-duckdb"
 )
+
 func Link(writer *bufio.Writer, duck, postgres *sql.DB, connStr string, DBID int) {
 
-	encryptedConnStr , err := utils.Encrypt(connStr, []byte(os.Getenv("ENCRYPTION_KEY")))
+	encryptedConnStr, err := utils.Encrypt(connStr, []byte(os.Getenv("ENCRYPTION_KEY")))
 	if err != nil {
 		response.InternalError(writer)
 		global.Serv.ErrorLog.Println(err)
@@ -48,13 +49,13 @@ func Link(writer *bufio.Writer, duck, postgres *sql.DB, connStr string, DBID int
 	defer txPg.Rollback()
 
 	// insert the connstr
-	_,err = txServer.Stmt(global.Serv.Dbstmt["CreateLink"]).Exec(DBID, encryptedConnStr)
+	_, err = txServer.Stmt(global.Serv.Dbstmt["CreateLink"]).Exec(DBID, encryptedConnStr)
 	if err != nil {
 		response.InternalError(writer)
 		global.Serv.ErrorLog.Println(err)
 		return
 	}
-	
+
 	// migrate schema
 	err = internal.Migrate(DBID, connStr, global.Serv.Dbstmt["CreateTable"], txPg, txDuck, txServer)
 	if err != nil {

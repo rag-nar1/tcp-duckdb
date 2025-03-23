@@ -1,12 +1,12 @@
 package main
 
 import (
-	global "TCP-Duckdb/server"
 	"net"
+
 	_ "github.com/marcboeker/go-duckdb"
 	_ "github.com/mattn/go-sqlite3"
+	global "github.com/rag-nar1/TCP-Duckdb/server"
 )
-
 
 func init() {
 	global.Init()
@@ -14,7 +14,7 @@ func init() {
 
 func main() {
 	// start listing to tcp connections
-	listener , err := net.Listen("tcp", global.Serv.Address)
+	listener, err := net.Listen("tcp", global.Serv.Address)
 	if err != nil {
 		global.Serv.ErrorLog.Fatal(err)
 	}

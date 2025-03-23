@@ -2,7 +2,6 @@ package utils
 
 import (
 	// "bufio"
-	"TCP-Duckdb/response"
 	"database/sql"
 	"fmt"
 	"log"
@@ -12,12 +11,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rag-nar1/TCP-Duckdb/response"
+
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq" // Import the PostgreSQL driver
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func StartUp() (*net.TCPConn){
+func StartUp() *net.TCPConn {
 	if err := godotenv.Load("../.env"); err != nil {
 		panic(err)
 	}
@@ -26,11 +27,11 @@ func StartUp() (*net.TCPConn){
 }
 
 func Connection() *net.TCPConn {
-	tcpAddr, err := net.ResolveTCPAddr("tcp","localhost:4000")
+	tcpAddr, err := net.ResolveTCPAddr("tcp", "localhost:4000")
 	if err != nil {
 		panic(err)
 	}
-	conn, err := net.DialTCP("tcp",nil,tcpAddr)
+	conn, err := net.DialTCP("tcp", nil, tcpAddr)
 	if err != nil {
 		panic(err)
 	}
@@ -69,8 +70,8 @@ func Read(conn *net.TCPConn) string {
 	if err != nil {
 		panic(err)
 	}
-	return strings.Trim(string(buffer[:n])," \n\t")
-} 
+	return strings.Trim(string(buffer[:n]), " \n\t")
+}
 
 func CreateDB(conn *net.TCPConn, dbname string) error {
 	if _, err := conn.Write([]byte("create database " + dbname)); err != nil {
@@ -104,7 +105,6 @@ func CreateTable(conn *net.TCPConn, tablename string) error {
 	}
 	return nil
 }
-
 
 func ConnectDb(conn *net.TCPConn, dbname string) error {
 	_, err := conn.Write([]byte("connect " + dbname))
@@ -195,11 +195,11 @@ func CleanUpDb(db *sql.DB) error {
 }
 
 func CleanUpUsers(db *sql.DB) error {
-	
+
 	if _, err := db.Exec("DELETE FROM user WHERE usertype not like 'super';"); err != nil {
 		return err
 	}
-	
+
 	return nil
 }
 
@@ -217,30 +217,30 @@ func CleanUpTables(db *sql.DB) error {
 }
 
 func CleanUp() {
-	db , err := sql.Open("sqlite3","../storge/server/db.sqlite3")
+	db, err := sql.Open("sqlite3", "../storge/server/db.sqlite3")
 	if err != nil {
 		log.Fatal(err)
-		 
+
 	}
 	defer db.Close()
 
 	if err := CleanUpDb(db); err != nil {
 		log.Fatal(err)
-		 
+
 	}
 
 	if err := CleanUpUsers(db); err != nil {
 		log.Fatal(err)
-		 
+
 	}
 
 	if err := CleanUpTables(db); err != nil {
 		log.Fatal(err)
-		 
+
 	}
 	if err := CleanUpLink(); err != nil {
 		log.Fatal(err)
-		
+
 	}
 }
 
@@ -256,7 +256,7 @@ func Link(conn *net.TCPConn, dbname, connStr string) error {
 }
 
 func CleanUpLink() error {
-	pq , err := sql.Open("postgres", "postgresql://postgres:1242003@localhost:5432")
+	pq, err := sql.Open("postgres", "postgresql://postgres:1242003@localhost:5432")
 	if err != nil {
 		return err
 	}
@@ -274,12 +274,12 @@ func CleanUpLink() error {
 	}
 	defer pq.Close()
 
-	for _,t := range []string{"t1", "t2", "t3"} {
+	for _, t := range []string{"t1", "t2", "t3"} {
 		if _, err := pq.Exec(fmt.Sprintf("create table %s(id int primary key);", t)); err != nil {
 			return err
 		}
-		for i := 1; i <= 3; i ++ {
-			if _, err := pq.Exec(fmt.Sprintf("insert into %s(id) values(%d);", t,i)); err != nil {
+		for i := 1; i <= 3; i++ {
+			if _, err := pq.Exec(fmt.Sprintf("insert into %s(id) values(%d);", t, i)); err != nil {
 				return err
 			}
 		}

@@ -1,9 +1,10 @@
 package migrate_test
 
 import (
-	"TCP-Duckdb/utils"
 	"database/sql"
 	"encoding/json"
+
+	"github.com/rag-nar1/TCP-Duckdb/utils"
 
 	"testing"
 
@@ -105,7 +106,7 @@ func TestBigMigration(t *testing.T) {
 
 	err = utils.ConnectDb(conn, dbname)
 	assert.Nil(t, err) // Ensure no error during connecting to the database
-	
+
 	data, err := utils.QueryData(conn, "select max(id) as id from t1;")
 	assert.Nil(t, err)
 
@@ -125,7 +126,7 @@ func TestBigMigration(t *testing.T) {
 
 	err = utils.ConnectDb(conn, dbname)
 	assert.Nil(t, err) // Ensure no error during connecting to the database
-	
+
 	data, err = utils.QueryData(conn, "select max(id) as id from t1;")
 	assert.Nil(t, err)
 

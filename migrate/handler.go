@@ -1,10 +1,10 @@
 package migrate
 
 import (
-	internal "TCP-Duckdb/internal"
-	response "TCP-Duckdb/response"
-	global "TCP-Duckdb/server"
-	utils "TCP-Duckdb/utils"
+	internal "github.com/rag-nar1/TCP-Duckdb/internal"
+	response "github.com/rag-nar1/TCP-Duckdb/response"
+	global "github.com/rag-nar1/TCP-Duckdb/server"
+	utils "github.com/rag-nar1/TCP-Duckdb/utils"
 
 	"bufio"
 	"os"
@@ -23,7 +23,7 @@ func Handler(privilege string, req []string, writer *bufio.Writer) {
 	dbname := req[0]
 	// check the existince of the database
 	var DBID int
-	
+
 	if err := global.Serv.Dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID); err != nil {
 		response.DoesNotExistDatabse(writer, dbname)
 		global.Serv.ErrorLog.Println(err)
@@ -31,9 +31,9 @@ func Handler(privilege string, req []string, writer *bufio.Writer) {
 	}
 
 	var connStrEncrypted string
-	
+
 	if err := global.Serv.Dbstmt["SelectLink"].QueryRow(DBID).Scan(&connStrEncrypted); err != nil {
-		response.Error(writer, []byte("database: " + dbname + " is not linked to any postgreSQL database\n"))
+		response.Error(writer, []byte("database: "+dbname+" is not linked to any postgreSQL database\n"))
 		global.Serv.ErrorLog.Println(err)
 		return
 	}
@@ -45,7 +45,7 @@ func Handler(privilege string, req []string, writer *bufio.Writer) {
 		return
 	}
 	// open duckdb
-	duck, err := sqlx.Open("duckdb", os.Getenv("DBdir") + "/users/" + dbname + ".db")
+	duck, err := sqlx.Open("duckdb", os.Getenv("DBdir")+"/users/"+dbname+".db")
 	if err != nil {
 		response.InternalError(writer)
 		global.Serv.ErrorLog.Println(err)
@@ -61,7 +61,6 @@ func Handler(privilege string, req []string, writer *bufio.Writer) {
 	}
 	defer postgres.Close()
 
-	
 	if err := internal.ReadAudit(duck, postgres); err != nil {
 		response.InternalError(writer)
 		global.Serv.ErrorLog.Println(err)

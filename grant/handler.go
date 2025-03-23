@@ -1,13 +1,14 @@
 package grant
 
 import (
-	response	"TCP-Duckdb/response"
 	"bufio"
+
+	response "github.com/rag-nar1/TCP-Duckdb/response"
 )
 
 // database [dbname] [username] [accesstype] ,
 // table [dbname] [tablename] [username] [accesstype]
-func Handler(privilege string, req []string, writer *bufio.Writer) { 
+func Handler(privilege string, req []string, writer *bufio.Writer) {
 	if privilege != "super" {
 		response.UnauthorizedError(writer)
 		return
