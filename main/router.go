@@ -45,6 +45,7 @@ func Router(UID int, UserName, privilege string, reader *bufio.Reader, writer *b
 		if err != nil {
 			response.InternalError(writer)
 			global.Serv.ErrorLog.Println(err)
+			global.Serv.InfoLog.Println("Connection closed")
 			return
 		}
 
@@ -79,8 +80,9 @@ func Router(UID int, UserName, privilege string, reader *bufio.Reader, writer *b
 			link.Handler(privilege, req[1:], writer)
 		}
 
-		migrate.Handler(privilege, req[1:], writer)
-
+		if req[0] == "migrate" {
+			MigrateHandler(privilege, req[1:], writer)
+		}
 	}
 	
 }

@@ -2,6 +2,7 @@ package internal
 
 import (
 	"TCP-Duckdb/utils"
+	
 	"context"
 	"database/sql"
 	"database/sql/driver"
@@ -14,6 +15,8 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
+	_ "github.com/marcboeker/go-duckdb"
 )
 
 type JSONB map[string]interface{}

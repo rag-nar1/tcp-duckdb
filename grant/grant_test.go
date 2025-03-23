@@ -10,44 +10,44 @@ func TestBasicGrantOverDb(t *testing.T) {
 	dbname := "db1"
 	username := "ragnar"
 	password := "ragnar"
-	defer utils.CleanUp(dbname)
+	t.Cleanup(utils.CleanUp) // Clean up resources after test
 
-	conn := utils.StartUp()
+	conn := utils.StartUp() // Start up the database connection
 	err := utils.LoginAsAdmin(conn)
-	assert.Nil(t, err) // Ensure no error during startup
+	assert.Nil(t, err) // Ensure no error during admin login
 
 	err = utils.CreateDB(conn, dbname)
-	assert.Nil(t, err) // Ensure no error during creating db
+	assert.Nil(t, err) // Ensure no error during database creation
 
 	err = utils.CreateUser(conn, username, password)
-	assert.Nil(t, err) // Ensure no error during creating user
+	assert.Nil(t, err) // Ensure no error during user creation
 
 	err = utils.GrantDb(conn, username, dbname, "read")
-	assert.Nil(t, err) // Ensure no error during granting user access
-	
-	conn2 := utils.Connection()
+	assert.Nil(t, err) // Ensure no error during granting read access to the user
+
+	conn2 := utils.Connection() // Create a new connection
 	err = utils.Login(conn2, username, password)
-	assert.Nil(t, err) // Ensure no error during login
+	assert.Nil(t, err) // Ensure no error during user login
 
 	err = utils.ConnectDb(conn2, dbname)
-	assert.Nil(t, err) // Ensure no error during connection
+	assert.Nil(t, err) // Ensure no error during database connection
 }
 
 func TestGrantInvalidPermission(t *testing.T) {
 	dbname := "db3"
 	username := "doe"
 	password := "doe"
-	defer utils.CleanUp(dbname)
+	t.Cleanup(utils.CleanUp) // Clean up resources after test
 
-	conn := utils.StartUp()
+	conn := utils.StartUp() // Start up the database connection
 	err := utils.LoginAsAdmin(conn)
-	assert.Nil(t, err) // Ensure no error during startup
+	assert.Nil(t, err) // Ensure no error during admin login
 
 	err = utils.CreateDB(conn, dbname)
-	assert.Nil(t, err) // Ensure no error during creating db
+	assert.Nil(t, err) // Ensure no error during database creation
 
 	err = utils.CreateUser(conn, username, password)
-	assert.Nil(t, err) // Ensure no error during creating user
+	assert.Nil(t, err) // Ensure no error during user creation
 
 	err = utils.GrantDb(conn, username, dbname, "invalid_permission")
 	assert.NotNil(t, err) // Ensure error during granting invalid permission
@@ -56,32 +56,34 @@ func TestGrantInvalidPermission(t *testing.T) {
 func TestGrantWithoutDb(t *testing.T) {
 	username := "alice"
 	password := "alice"
-	defer utils.CleanUp("")
-	conn := utils.StartUp()
+	t.Cleanup(utils.CleanUp) // Clean up resources after test
+
+	conn := utils.StartUp() // Start up the database connection
 	err := utils.LoginAsAdmin(conn)
-	assert.Nil(t, err) // Ensure no error during startup
+	assert.Nil(t, err) // Ensure no error during admin login
 
 	err = utils.CreateUser(conn, username, password)
-	assert.Nil(t, err) // Ensure no error during creating user
+	assert.Nil(t, err) // Ensure no error during user creation
 
 	err = utils.GrantDb(conn, username, "non_existent_db", "read")
-	assert.NotNil(t, err) // Ensure error during granting access to non-existent db
+	assert.NotNil(t, err) // Ensure error during granting access to non-existent database
 }
 
 func TestGrantMultiplePermissions(t *testing.T) {
 	dbname := "db4"
 	username := "bob"
 	password := "bob"
-	defer utils.CleanUp(dbname)
-	conn := utils.StartUp()
+	t.Cleanup(utils.CleanUp) // Clean up resources after test
+
+	conn := utils.StartUp() // Start up the database connection
 	err := utils.LoginAsAdmin(conn)
-	assert.Nil(t, err) // Ensure no error during startup
+	assert.Nil(t, err) // Ensure no error during admin login
 
 	err = utils.CreateDB(conn, dbname)
-	assert.Nil(t, err) // Ensure no error during creating db
+	assert.Nil(t, err) // Ensure no error during database creation
 
 	err = utils.CreateUser(conn, username, password)
-	assert.Nil(t, err) // Ensure no error during creating user
+	assert.Nil(t, err) // Ensure no error during user creation
 
 	err = utils.GrantDb(conn, username, dbname, "read")
 	assert.Nil(t, err) // Ensure no error during granting read access
@@ -89,12 +91,12 @@ func TestGrantMultiplePermissions(t *testing.T) {
 	err = utils.GrantDb(conn, username, dbname, "write")
 	assert.Nil(t, err) // Ensure no error during granting write access
 
-	conn2 := utils.Connection()
+	conn2 := utils.Connection() // Create a new connection
 	err = utils.Login(conn2, username, password)
-	assert.Nil(t, err) // Ensure no error during login
+	assert.Nil(t, err) // Ensure no error during user login
 
 	err = utils.ConnectDb(conn2, dbname)
-	assert.Nil(t, err) // Ensure no error during connection
+	assert.Nil(t, err) // Ensure no error during database connection
 }
 
 func TestGrantOverTable(t *testing.T) {
@@ -102,61 +104,62 @@ func TestGrantOverTable(t *testing.T) {
 	username := "bob"
 	password := "bob"
 	tablename := "t1"
-	defer utils.CleanUp(dbname)
-	conn := utils.StartUp()
+	t.Cleanup(utils.CleanUp) // Clean up resources after test
+
+	conn := utils.StartUp() // Start up the database connection
 	err := utils.LoginAsAdmin(conn)
-	assert.Nil(t, err) // No error during startup
+	assert.Nil(t, err) // Ensure no error during admin login
 
 	err = utils.CreateDB(conn, dbname)
-	assert.Nil(t, err) // No error during database creation
+	assert.Nil(t, err) // Ensure no error during database creation
 
 	err = utils.CreateUser(conn, username, password)
-	assert.Nil(t, err) // No error during user creation
+	assert.Nil(t, err) // Ensure no error during user creation
 
 	err = utils.GrantDb(conn, username, dbname, "read")
-	assert.Nil(t, err) // No error during granting database read access
+	assert.Nil(t, err) // Ensure no error during granting database read access
 
 	err = utils.ConnectDb(conn, dbname)
-	assert.Nil(t, err) // No error during database connection
+	assert.Nil(t, err) // Ensure no error during database connection
 
 	err = utils.CreateTable(conn, tablename)
-	assert.Nil(t, err) // No error during table creation
+	assert.Nil(t, err) // Ensure no error during table creation
 
-	conn2 := utils.Connection()
+	conn2 := utils.Connection() // Create a new connection
 	err = utils.Login(conn2, username, password)
-	assert.Nil(t, err) // No error during user login
+	assert.Nil(t, err) // Ensure no error during user login
 
 	err = utils.ConnectDb(conn2, dbname)
-	assert.Nil(t, err) // No error during database connection
+	assert.Nil(t, err) // Ensure no error during database connection
 
 	err = utils.Query(conn2, "select * from t1;")
-	assert.NotNil(t, err) // Error expected during query without table access
+	assert.NotNil(t, err) // Ensure error during query without table access
 
 	err = utils.Query(conn2, "insert into t1(id, name) values(1, 'ragnar');")
-	assert.NotNil(t, err) // Error expected during insert without table access
+	assert.NotNil(t, err) // Ensure error during insert without table access
 
-	conn = utils.Connection()
+	conn = utils.Connection() // Create a new connection
 	err = utils.LoginAsAdmin(conn)
-	assert.Nil(t, err) // No error during admin login
+	assert.Nil(t, err) // Ensure no error during admin login
 
 	err = utils.GrantTable(conn, username, dbname, tablename, "select")
-	assert.Nil(t, err) // No error during granting table select access
+	assert.Nil(t, err) // Ensure no error during granting table select access
 
 	err = utils.Query(conn2, "select * from t1;")
-	assert.Nil(t, err) // No error during query after granting select access
+	assert.Nil(t, err) // Ensure no error during query after granting select access
 
 	err = utils.Query(conn2, "insert into t1(id, name) values(1, 'ragnar');")
-	assert.NotNil(t, err) // Error expected during insert without insert access
+	assert.NotNil(t, err) // Ensure error during insert without insert access
 
 	err = utils.GrantTable(conn, username, dbname, tablename, "insert")
-	assert.NotNil(t, err) // Error expected during granting insert access without write access
+	assert.NotNil(t, err) // Ensure error during granting insert access without write access
 
 	err = utils.GrantDb(conn, username, dbname, "write")
-	assert.Nil(t, err) // No error during granting database write access
+	assert.Nil(t, err) // Ensure no error during granting database write access
 
 	err = utils.GrantTable(conn, username, dbname, tablename, "insert")
-	assert.Nil(t, err) // No error during granting table insert access
+	assert.Nil(t, err) // Ensure no error during granting table insert access
 
 	err = utils.Query(conn2, "insert into t1(id, name) values(1, 'ragnar');")
-	assert.Nil(t, err) // No error during insert after granting insert access
+	assert.Nil(t, err) // Ensure no error during insert after granting insert access
 }

@@ -61,7 +61,5 @@ func Handler(privilege string, req []string, writer *bufio.Writer) {
 		global.Serv.ErrorLog.Println(err)
 		return
 	}
-
-	
-	
+	Link(writer, duck, postgres, connStr, DBID)
 }
