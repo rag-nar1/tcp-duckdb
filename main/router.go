@@ -81,7 +81,7 @@ func Router(UID int, UserName, privilege string, reader *bufio.Reader, writer *b
 		}
 
 		if req[0] == "migrate" {
-			MigrateHandler(privilege, req[1:], writer)
+			migrate.Handler(privilege, req[1:], writer)
 		}
 	}
 	

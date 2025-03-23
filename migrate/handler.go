@@ -1,10 +1,10 @@
 package migrate
 
 import (
-	response 	"TCP-Duckdb/response"
-	internal 	"TCP-Duckdb/internal"
-	global 		"TCP-Duckdb/server"
-	utils 		"TCP-Duckdb/utils"
+	internal "TCP-Duckdb/internal"
+	response "TCP-Duckdb/response"
+	global "TCP-Duckdb/server"
+	utils "TCP-Duckdb/utils"
 
 	"bufio"
 	"os"
@@ -61,6 +61,7 @@ func Handler(privilege string, req []string, writer *bufio.Writer) {
 	}
 	defer postgres.Close()
 
+	
 	if err := internal.ReadAudit(duck, postgres); err != nil {
 		response.InternalError(writer)
 		global.Serv.ErrorLog.Println(err)

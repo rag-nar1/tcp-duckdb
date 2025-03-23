@@ -2,8 +2,7 @@ package internal
 
 import (
 	"TCP-Duckdb/utils"
-	
-	"context"
+
 	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
@@ -179,8 +178,8 @@ func ReadAudit(duck, postgres *sqlx.DB) error {
 	if err != nil {
 		return err
 	}
-	var ctx context.Context
-	transaction, err := duck.BeginTxx(ctx,&sql.TxOptions{ReadOnly: false, Isolation: sql.LevelDefault})
+
+	transaction, err := duck.Beginx()
 	if err != nil {
 		return err
 	}
@@ -207,7 +206,11 @@ func ReadAudit(duck, postgres *sqlx.DB) error {
 	}
 
 	// Delete all tuples where time stamp <= max
-	if _, err = transaction.Exec("DELETE FROM audit.logged_actions WHERE action_tstamp <= $1;", maxTimeStamp); err != nil {
+	if _, err = postgres.Exec("DELETE FROM audit.logged_actions WHERE action_tstamp <= $1;", maxTimeStamp); err != nil {
+		return err
+	}
+
+	if err := transaction.Commit(); err != nil {
 		return err
 	}
 
@@ -238,7 +241,7 @@ func ApplyInsert(db *sqlx.Tx, record *AuditRecord) error {
 	keys, valuesInterfaces := record.NewData.Get()
 	columns := strings.Join(keys, ",")
 	query = fmt.Sprintf(query, record.TableName, columns, GenPlaceHoldersForDuck(len(keys)))
-	_, err := db.NamedExec(query,valuesInterfaces)
+	_, err := db.Exec(query,valuesInterfaces...)
 	return err
 }
 
@@ -248,7 +251,7 @@ func ApplyUpdate(db *sqlx.Tx, record *AuditRecord) error {
 	predicate := fmt.Sprintf("%s = %s", record.TablePKColumn, record.TablePK)
 	columns := GenSetForDuck(keys)
 	query = fmt.Sprintf(query, record.TableName, columns, predicate)
-	_, err := db.NamedExec(query,valuesInterfaces)
+	_, err := db.Exec(query,valuesInterfaces...)
 	return err
 }
 
