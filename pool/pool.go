@@ -16,8 +16,15 @@ type DBPool struct {
 	ConnPool	*sql.DB
 	Dbname		string
 	Dbid		uint
-	PinCount	atomic.Uint32
-} 
+	PinCount	atomic.Int32
+	Replacer   	*LruReplacer
+	PoolLatch	*sync.Mutex
+}
+
+type Connection interface {
+	sql.DB
+	Destroy()
+}
 
 func (d *DBPool) Delete() {
 	if d.ConnPool == nil {
@@ -25,6 +32,23 @@ func (d *DBPool) Delete() {
 	}
 	d.ConnPool.Close()
 }
+
+func (d *DBPool) Destroy() {
+	if d.ConnPool == nil {
+		return
+	}
+
+	d.PoolLatch.Lock()
+	
+	d.PinCount.Add(-1)
+	if d.PinCount.Load() == 0 {
+		d.Replacer.SetEvictable(d.Dbid, true)
+	}
+	d.PoolLatch.Unlock()
+
+	d = nil
+}
+
 
 type Pool struct {
 	DB			[]*DBPool
@@ -85,7 +109,9 @@ func (p *Pool) Get(dbname string) (*sql.DB, error) {
 		ConnPool: connPool,
 		Dbname: dbname,
 		Dbid: dbid,
-		PinCount: atomic.Uint32{},
+		PinCount: atomic.Int32{},
+		Replacer: p.Replacer,
+		PoolLatch: &p.Latch,
 	}
 
 	if err := p.Replacer.RecordAccess(dbPool.Dbid); err != nil {

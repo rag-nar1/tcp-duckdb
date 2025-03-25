@@ -17,7 +17,7 @@ import (
 )
 
 const ( 
-	InvalidDbId = 0
+	InvalidDbId uint = 0
 	InvalidDbidStmt = "invalid dbid %d"
 	LruReplacerFullErrorStmt = "replacer is full use Evict"
 )
@@ -144,6 +144,8 @@ func (r *LruReplacer) Evict() (uint) {
 }
 
 func (r *LruReplacer) SetEvictable(dbid uint, evictable bool) {
+	r.Latch.Lock() // lock the latch
+	defer r.Latch.Unlock()
 	if _,ok := r.Nodes[dbid]; !ok {
 		return
 	}
