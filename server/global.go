@@ -21,3 +21,5 @@ var preparedStmtStrings = [][]string{
 	{"SelectLink",			"SELECT connstr FROM postgres WHERE dbid == ?;"},
 	{"SelectKey",			"SELECT key FROM keys WHERE dbid == ?;"},
 }
+
+var DbPoolSize uint = 1 << 2 // 4 db connections for testing will be 16 for production
