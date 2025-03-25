@@ -23,3 +23,4 @@ var preparedStmtStrings = [][]string{
 }
 
 var DbPoolSize uint = 1 << 2 // 4 db connections for testing will be 16 for production
+var ReplacerK uint	= 1 << 2

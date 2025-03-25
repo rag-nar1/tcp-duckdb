@@ -1,5 +1,5 @@
 /*
-	replacer is an LRU-K replacer
+	Lrureplacer is an LRU-K Lrureplacer
 */
 
 package pool
@@ -17,9 +17,9 @@ import (
 )
 
 const ( 
-	ReplacerFullErrorStmt 	= "replacer is full use Evict"
-	InvalidDbidStmt 		= "invalid dbid %d"
-	InvalidDbId 			= 0
+	InvalidDbId = 0
+	InvalidDbidStmt = "invalid dbid %d"
+	LruReplacerFullErrorStmt = "replacer is full use Evict"
 )
 
 type Node struct {
@@ -61,17 +61,17 @@ func (n *Node) GetMostRecentAccess() uint64 {
 	return n.Access.Back().Value.(uint64)
 }
 
-type Replacer struct {
+type LruReplacer struct {
 	Nodes		map[uint]*Node
-	Size		uint				// curr size of the replacer
-	K 			uint				// the size of the time window which the replacer will use to evict db
+	Size		uint				// curr size of the Lrureplacer
+	K 			uint				// the size of the time window which the Lrureplacer will use to evict db
 	Latch		sync.Mutex		// latch to control concurrent use
 	CurrTime	atomic.Uint64		// atomic value for shared access to record the time where a database is accessed
 }
 
 
-func NewReplacer(k uint) *Replacer {
-	r := Replacer {
+func NewLruReplacer(k uint) *LruReplacer {
+	r := LruReplacer {
 		Nodes: make(map[uint]*Node),
 		Size: 0,
 		K: k,
@@ -82,7 +82,7 @@ func NewReplacer(k uint) *Replacer {
 	return &r
 }
 
-func (r *Replacer) RecordAccess(dbid uint) error {
+func (r *LruReplacer) RecordAccess(dbid uint) error {
 	r.Latch.Lock() // lock the latch to record the access
 	defer r.Latch.Unlock()
 	
@@ -91,7 +91,7 @@ func (r *Replacer) RecordAccess(dbid uint) error {
 	}
 
 	if r.Size == uint(server.DbPoolSize) {
-		return errors.New(ReplacerFullErrorStmt)
+		return errors.New(LruReplacerFullErrorStmt)
 	}
 
 	if _,ok := r.Nodes[dbid]; !ok {
@@ -107,7 +107,7 @@ func (r *Replacer) RecordAccess(dbid uint) error {
 	return nil
 }
 
-func (r *Replacer) Evict() (uint) {
+func (r *LruReplacer) Evict() (uint) {
 	r.Latch.Lock() // lock the latch to evict
 	defer r.Latch.Unlock()
 
@@ -143,7 +143,7 @@ func (r *Replacer) Evict() (uint) {
 	return victim
 }
 
-func (r *Replacer) SetEvictable(dbid uint, evictable bool) {
+func (r *LruReplacer) SetEvictable(dbid uint, evictable bool) {
 	if _,ok := r.Nodes[dbid]; !ok {
 		return
 	}
