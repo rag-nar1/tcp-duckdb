@@ -10,7 +10,7 @@ import (
 )
 
 
-func TestBasic(t *testing.T) {
+func TestReaplacerBasic(t *testing.T) {
 	var dbid1 uint = 1
 	var dbid2 uint = 2
 	replacer := pool.NewLruReplacer(2)
@@ -23,7 +23,7 @@ func TestBasic(t *testing.T) {
 	assert.Equal(t, dbid2, evicted)
 }
 
-func TestMain(t *testing.T) {
+func TestReaplacerMain(t *testing.T) {
 	var dbid1 uint = 1
 	var dbid2 uint = 2
 	replacer := pool.NewLruReplacer(2)
@@ -47,7 +47,7 @@ func TestMain(t *testing.T) {
 	assert.Equal(t, dbid1, evicted)
 }
 
-func TestConcurruncy(t *testing.T) {
+func TestReaplacerConcurruncy(t *testing.T) {
 	replacer := pool.NewLruReplacer(3)
 	var wg sync.WaitGroup          // WaitGroup to synchronize goroutines
 	for i := 1; i <= int(server.DbPoolSize); i ++ {

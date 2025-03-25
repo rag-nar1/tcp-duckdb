@@ -22,15 +22,18 @@ type DBPool struct {
 }
 
 type Connection interface {
-	sql.DB
+	DB() *sql.DB
 	Destroy()
+
+	GetPinCount() int // for testing only
 }
 
-func (d *DBPool) Delete() {
-	if d.ConnPool == nil {
-		return
-	}
-	d.ConnPool.Close()
+func (d *DBPool) DB() *sql.DB {
+	return d.ConnPool
+}
+
+func (d *DBPool) GetPinCount() int {
+	return int(d.PinCount.Load())
 }
 
 func (d *DBPool) Destroy() {
@@ -49,6 +52,14 @@ func (d *DBPool) Destroy() {
 	d = nil
 }
 
+func (d *DBPool) Delete() {
+	if d == nil || d.ConnPool == nil {
+		return
+	}
+	d.ConnPool.Close()
+}
+
+
 
 type Pool struct {
 	DB			[]*DBPool
@@ -59,9 +70,9 @@ type Pool struct {
 	Latch		sync.Mutex
 }
 
-func NewPool(size uint) *Pool {
+func NewPool() *Pool {
 	pool := &Pool{
-		DB: make([]*DBPool, size),
+		DB: make([]*DBPool, server.DbPoolSize + 1),
 		Ids: make(map[string]uint),
 		Free: list.New(),
 		Size: 0,
@@ -69,21 +80,22 @@ func NewPool(size uint) *Pool {
 		Latch: sync.Mutex{},
 	}
 
-	for i := 1; i <= int(size); i ++ {
-		pool.Free.PushBack(i)
+	for i := 1; i <= int(server.DbPoolSize); i ++ {
+		pool.Free.PushBack(uint(i))
 	}
 
 	return pool
 }
 
 
-func (p *Pool) Get(dbname string) (*sql.DB, error) {
+func (p *Pool) Get(dbname string) (Connection, error) {
 	p.Latch.Lock()
 	defer p.Latch.Unlock()
 
 	dbid, ok := p.Ids[dbname]
 	if ok {
-		return p.DB[dbid].ConnPool, nil
+		p.DB[dbid].PinCount.Add(1)
+		return p.DB[dbid], nil
 	}
 
 	var connPool *sql.DB
@@ -124,5 +136,5 @@ func (p *Pool) Get(dbname string) (*sql.DB, error) {
 	p.Ids[dbname] = dbid
 	p.Size ++
 
-	return dbPool.ConnPool, nil
+	return &dbPool, nil
 }
