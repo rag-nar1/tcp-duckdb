@@ -3,7 +3,8 @@ package pool
 import (
 	"container/list"
 	"database/sql"
-	"fmt"
+	"errors"
+
 	"os"
 	"sync"
 	"sync/atomic"
@@ -107,7 +108,7 @@ func (p *Pool) Get(dbname string) (Connection, error) {
 		// try to evict
 		dbid = p.Replacer.Evict()
 		if dbid == InvalidDbId {
-			return nil, fmt.Errorf(InvalidDbidStmt, dbid)
+			return nil, errors.New(LruReplacerFullErrorStmt)
 		}
 	}
 
