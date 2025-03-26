@@ -73,7 +73,7 @@ func TestBasicMigrate(t *testing.T) {
 	err = utils.ConnectDb(conn, dbname)
 	assert.Nil(t, err) // Ensure no error during connecting to the database
 
-	data, err := utils.QueryData(conn, "select * from t1 where id == 777")
+	data, err := utils.QueryData(conn, "select * from t1 where id == 777;")
 	assert.Nil(t, err)
 
 	res := make([]TestRow, 1)
