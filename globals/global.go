@@ -1,7 +1,7 @@
-package server
+package globals
 
-var Serv *Server
-var preparedStmtStrings = [][]string{
+
+var PreparedStmtStrings = [][]string{
 	{"login",               "SELECT userid , usertype FROM user WHERE username LIKE ? AND password LIKE ? ;"},
 	{"SelectUser",          "SELECT userid FROM user WHERE username LIKE ? ;"},
 	{"CreateUser",          "INSERT INTO user(username, password, usertype) VALUES(?, ?, ?);"},

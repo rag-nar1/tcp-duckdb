@@ -8,9 +8,9 @@ import (
 	"os"
 	"sync"
 	"sync/atomic"
-
+	
+	"github.com/rag-nar1/TCP-Duckdb/globals"
 	_ "github.com/marcboeker/go-duckdb"
-	"github.com/rag-nar1/TCP-Duckdb/server"
 )
 
 type DBPool struct {
@@ -73,15 +73,15 @@ type Pool struct {
 
 func NewPool() *Pool {
 	pool := &Pool{
-		DB: make([]*DBPool, server.DbPoolSize + 1),
+		DB: make([]*DBPool, globals.DbPoolSize + 1),
 		Ids: make(map[string]uint),
 		Free: list.New(),
 		Size: 0,
-		Replacer: NewLruReplacer(server.ReplacerK),
+		Replacer: NewLruReplacer(globals.ReplacerK),
 		Latch: sync.Mutex{},
 	}
 
-	for i := 1; i <= int(server.DbPoolSize); i ++ {
+	for i := 1; i <= int(globals.DbPoolSize); i ++ {
 		pool.Free.PushBack(uint(i))
 	}
 
@@ -101,7 +101,7 @@ func (p *Pool) Get(dbname string) (Connection, error) {
 
 	var connPool *sql.DB
 
-	if p.Size == server.DbPoolSize { // no evaction needed
+	if p.Size == globals.DbPoolSize { // no evaction needed
 		// try to evict
 		dbid = p.Replacer.Evict()
 		if dbid == InvalidDbId {

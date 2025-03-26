@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/joho/godotenv"
+	"github.com/rag-nar1/TCP-Duckdb/globals"
 	"github.com/rag-nar1/TCP-Duckdb/pool"
-	"github.com/rag-nar1/TCP-Duckdb/server"
 	"github.com/stretchr/testify/assert"
 )
 func CleanUp() {
@@ -99,7 +99,7 @@ func TestPoolConcurrunct(t *testing.T) {
 	connPool := pool.NewPool()
 	var wg sync.WaitGroup
 
-	for i := 1; i <= int(server.DbPoolSize); i ++ {
+	for i := 1; i <= int(globals.DbPoolSize); i ++ {
 		wg.Add(1)
 		go func (t *testing.T, dbid int, connPool *pool.Pool) {
 			db, err := connPool.Get(fmt.Sprintf("db%d", dbid))

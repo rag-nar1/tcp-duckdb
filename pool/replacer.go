@@ -13,7 +13,7 @@ import (
 	"math"
 	"sync"
 
-	"github.com/rag-nar1/TCP-Duckdb/server"
+	"github.com/rag-nar1/TCP-Duckdb/globals"
 )
 
 const ( 
@@ -86,11 +86,11 @@ func (r *LruReplacer) RecordAccess(dbid uint) error {
 	r.Latch.Lock() // lock the latch to record the access
 	defer r.Latch.Unlock()
 	
-	if dbid > server.DbPoolSize {
+	if dbid > globals.DbPoolSize {
 		return fmt.Errorf(InvalidDbidStmt, dbid)
 	}
 
-	if r.Size == uint(server.DbPoolSize) {
+	if r.Size == uint(globals.DbPoolSize) {
 		return errors.New(LruReplacerFullErrorStmt)
 	}
 

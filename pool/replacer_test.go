@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/rag-nar1/TCP-Duckdb/pool"
-	"github.com/rag-nar1/TCP-Duckdb/server"
+	"github.com/rag-nar1/TCP-Duckdb/globals"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -50,7 +50,7 @@ func TestReaplacerMain(t *testing.T) {
 func TestReaplacerConcurruncy(t *testing.T) {
 	replacer := pool.NewLruReplacer(3)
 	var wg sync.WaitGroup          // WaitGroup to synchronize goroutines
-	for i := 1; i <= int(server.DbPoolSize); i ++ {
+	for i := 1; i <= int(globals.DbPoolSize); i ++ {
 		wg.Add(1)
 		go func(dbid uint, replacer *pool.LruReplacer) {
 			for time := 0; time < 3; time ++ {
@@ -74,7 +74,7 @@ func TestReaplacerConcurruncy(t *testing.T) {
 	assert.Equal(t, uint(1), evicted % 2)
 	assert.NotEqual(t, uint(1) , evicted)
 
-	for i := 1; i <= int(server.DbPoolSize); i ++ {
+	for i := 1; i <= int(globals.DbPoolSize); i ++ {
 		wg.Add(1)
 		go func(dbid uint, replacer *pool.LruReplacer) {
 			replacer.SetEvictable(dbid, false)

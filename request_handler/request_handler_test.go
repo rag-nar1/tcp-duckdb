@@ -1,14 +1,31 @@
-package pool_test
+package request_handler_test
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 
 	"github.com/joho/godotenv"
-	"github.com/rag-nar1/TCP-Duckdb/pool"
+	"github.com/rag-nar1/TCP-Duckdb/request_handler"
+
 	"github.com/stretchr/testify/assert"
 )
+
+func CleanUp() {
+	files, err := filepath.Glob("../storge/users/*")
+	if err != nil {
+		panic(err)
+	}
+
+	for _, file := range files {
+		err := os.Remove(file)
+		if err != nil {
+			panic(err)
+		}
+	}
+}
 
 func TestRHBasic(t *testing.T) {
 	t.Cleanup(CleanUp)
@@ -16,10 +33,10 @@ func TestRHBasic(t *testing.T) {
 		panic(err)
 	}
 
-	rh := pool.NewRequestHandler()
+	rh := request_handler.NewRequestHandler()
 	go rh.Spin()
 
-	req := pool.NewRequest("db1")
+	req := request_handler.NewRequest("db1")
 	rh.Push(req)
 
 	connection := <- req.Response
@@ -33,7 +50,7 @@ func TestRHConcurruncy(t *testing.T) {
 	if err := godotenv.Load("../.env"); err != nil {
 		panic(err)
 	}
-	rh := pool.NewRequestHandler()
+	rh := request_handler.NewRequestHandler()
 	go rh.Spin()
 
 	threads := 10
@@ -42,8 +59,8 @@ func TestRHConcurruncy(t *testing.T) {
 
 	for i := 1; i <= threads; i ++ {
 		wg.Add(1)
-		go func(t *testing.T, rh *pool.RequestHandler, dbname string) {
-			req := pool.NewRequest(dbname)
+		go func(t *testing.T, rh *request_handler.RequestHandler, dbname string) {
+			req := request_handler.NewRequest(dbname)
 			rh.Push(req)
 
 			connection := <- req.Response
@@ -59,8 +76,8 @@ func TestRHConcurruncy(t *testing.T) {
 
 	for i := 1; i <= threads; i ++ {
 		wg.Add(1)
-		go func(t *testing.T, rh *pool.RequestHandler, dbname string) {
-			req := pool.NewRequest(dbname)
+		go func(t *testing.T, rh *request_handler.RequestHandler, dbname string) {
+			req := request_handler.NewRequest(dbname)
 			rh.Push(req)
 
 			connection := <- req.Response
@@ -75,8 +92,8 @@ func TestRHConcurruncy(t *testing.T) {
 	wg.Wait()
 	for i := 1; i <= threads; i ++ {
 		wg.Add(1)
-		go func(t *testing.T, rh *pool.RequestHandler, dbname string) {
-			req := pool.NewRequest(dbname)
+		go func(t *testing.T, rh *request_handler.RequestHandler, dbname string) {
+			req := request_handler.NewRequest(dbname)
 			rh.Push(req)
 
 			connection := <- req.Response

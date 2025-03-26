@@ -1,35 +1,37 @@
-package pool
+package request_handler
+
+import "github.com/rag-nar1/TCP-Duckdb/pool"
 
 type Request struct {
 	Dbname   string
-	Response chan Connection
+	Response chan pool.Connection
 	Err      chan error
 }
 
 func NewRequest(dbname string) *Request {
 	return &Request{
 		Dbname:   dbname,
-		Response: make(chan Connection, 1),
+		Response: make(chan pool.Connection, 1),
 		Err:      make(chan error, 1),
 	}
 }
 
 type RequestHandler struct {
 	Requests   chan *Request
-	PoolManger *Pool
+	PoolManger *pool.Pool
 }
 
 func NewRequestHandler() *RequestHandler {
 	return &RequestHandler{
 		Requests:   make(chan *Request),
-		PoolManger: NewPool(),
+		PoolManger: pool.NewPool(),
 	}
 }
 
 func HandleRequest(rh *RequestHandler, curr *Request) {
 	for {
 		connection, err := rh.PoolManger.Get(curr.Dbname)
-		if err != nil && err.Error() == LruReplacerFullErrorStmt {
+		if err != nil && err.Error() == pool.LruReplacerFullErrorStmt {
 			continue
 		}
 
