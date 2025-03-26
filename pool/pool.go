@@ -101,17 +101,18 @@ func (p *Pool) Get(dbname string) (Connection, error) {
 
 	var connPool *sql.DB
 
-	if p.Size != server.DbPoolSize { // no evaction needed
-		dbid = p.Free.Front().Value.(uint)
-		p.Free.Remove(p.Free.Front())
-	} else {
+	if p.Size == server.DbPoolSize { // no evaction needed
 		// try to evict
 		dbid = p.Replacer.Evict()
 		if dbid == InvalidDbId {
 			return nil, errors.New(LruReplacerFullErrorStmt)
 		}
+		p.Size --
+		p.Free.PushFront(dbid)
 	}
 
+	dbid = p.Free.Front().Value.(uint)
+	p.Free.Remove(p.Free.Front())
 	connPool, err := sql.Open("duckdb", os.Getenv("DBdir") + "users/"+ dbname + ".db")
 	if err != nil {
 		return nil, err
