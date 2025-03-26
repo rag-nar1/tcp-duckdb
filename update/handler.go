@@ -6,7 +6,7 @@ import (
 	"github.com/rag-nar1/TCP-Duckdb/response"
 )
 
-// update databse dbname newdbname
+// update databse [dbname] newdbname
 // update user username [username] [newusername]
 // update user password [username] [password]
 func Handler(privilege string, req []string, writer *bufio.Writer) {
@@ -31,7 +31,7 @@ func Handler(privilege string, req []string, writer *bufio.Writer) {
 	}
 
 	if req[0] == "database" {
-		UpdateDatabase()
+		UpdateDatabase(writer, req[1], req[2])
 		return
 	}
 
@@ -41,9 +41,9 @@ func Handler(privilege string, req []string, writer *bufio.Writer) {
 	}
 
 	if req[1] == "username" {
-		UpdateUserUsername()
+		UpdateUserUsername(writer, req[2], req[3])
 		return
 	}
 
-	UpdateUserPassword()
+	UpdateUserPassword(writer, req[2], req[3])
 }
