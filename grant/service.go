@@ -1,12 +1,12 @@
 package grant
 
 import (
-	response "github.com/rag-nar1/TCP-Duckdb/response"
-	global "github.com/rag-nar1/TCP-Duckdb/server"
-	utils "github.com/rag-nar1/TCP-Duckdb/utils"
-
 	"bufio"
 	"strings"
+
+	"github.com/rag-nar1/TCP-Duckdb/response"
+	"github.com/rag-nar1/TCP-Duckdb/server"
+	"github.com/rag-nar1/TCP-Duckdb/utils"
 )
 
 func GrantDB(writer *bufio.Writer, dbname, username, accesstype string) {
@@ -18,41 +18,42 @@ func GrantDB(writer *bufio.Writer, dbname, username, accesstype string) {
 	}
 	// get DBID , UID
 	var DBID, UID int
-	err := global.Serv.Dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID)
+	err := server.Serv.Dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID)
 	if err != nil {
 		response.DoesNotExistDatabse(writer, dbname)
 		return
 	}
 
-	err = global.Serv.Dbstmt["SelectUser"].QueryRow(username).Scan(&UID)
+	err = server.Serv.Dbstmt["SelectUser"].QueryRow(username).Scan(&UID)
 	if err != nil {
 		response.DoesNotExistUser(writer, username)
 		return
 	}
 
 	// grant access
-	transaction, err := global.Serv.Sqlitedb.Begin()
+	transaction, err := server.Serv.Sqlitedb.Begin()
 	if err != nil {
 		response.InternalError(writer)
-		global.Serv.ErrorLog.Println(err)
+		server.Serv.ErrorLog.Println(err)
 		return
 	}
 	defer transaction.Rollback()
-	if _, err := transaction.Stmt(global.Serv.Dbstmt["DeleteDbAccess"]).Exec(UID, DBID); err != nil {
+	
+	if _, err := transaction.Stmt(server.Serv.Dbstmt["DeleteDbAccess"]).Exec(UID, DBID); err != nil {
 		response.InternalError(writer)
-		global.Serv.ErrorLog.Println(err)
+		server.Serv.ErrorLog.Println(err)
 		return
 	}
 
-	if _, err := transaction.Stmt(global.Serv.Dbstmt["GrantDB"]).Exec(DBID, UID, accesstype); err != nil {
+	if _, err := transaction.Stmt(server.Serv.Dbstmt["GrantDB"]).Exec(DBID, UID, accesstype); err != nil {
 		response.InternalError(writer)
-		global.Serv.ErrorLog.Println(err)
+		server.Serv.ErrorLog.Println(err)
 		return
 	}
 
 	if err := transaction.Commit(); err != nil {
 		response.InternalError(writer)
-		global.Serv.ErrorLog.Println(err)
+		server.Serv.ErrorLog.Println(err)
 		return
 	}
 	response.Success(writer)
@@ -69,26 +70,26 @@ func GrantTable(writer *bufio.Writer, dbname, tablename, username string, access
 	}
 
 	var DBID, UID, TID int
-	err := global.Serv.Dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID)
+	err := server.Serv.Dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID)
 	if err != nil {
 		response.DoesNotExistDatabse(writer, dbname)
 		return
 	}
 
-	err = global.Serv.Dbstmt["SelectUser"].QueryRow(username).Scan(&UID)
+	err = server.Serv.Dbstmt["SelectUser"].QueryRow(username).Scan(&UID)
 	if err != nil {
 		response.DoesNotExistUser(writer, username)
 		return
 	}
 
-	err = global.Serv.Dbstmt["SelectTable"].QueryRow(tablename, DBID).Scan(&TID)
+	err = server.Serv.Dbstmt["SelectTable"].QueryRow(tablename, DBID).Scan(&TID)
 	if err != nil {
 		response.DoesNotExistTables(writer, tablename)
 		return
 	}
 
 	var DbAccessType string
-	err = global.Serv.Dbstmt["DbAccessType"].QueryRow(UID, DBID).Scan(&DbAccessType)
+	err = server.Serv.Dbstmt["DbAccessType"].QueryRow(UID, DBID).Scan(&DbAccessType)
 	if err != nil {
 		response.InternalError(writer)
 		return
@@ -103,26 +104,26 @@ func GrantTable(writer *bufio.Writer, dbname, tablename, username string, access
 		}
 	}
 
-	transaction, err := global.Serv.Sqlitedb.Begin()
+	transaction, err := server.Serv.Sqlitedb.Begin()
 	if err != nil {
 		response.InternalError(writer)
-		global.Serv.ErrorLog.Println(err)
+		server.Serv.ErrorLog.Println(err)
 		return
 	}
 	defer transaction.Rollback()
 
 	for _, accesstype := range accesstypes {
-		_, err := transaction.Stmt(global.Serv.Dbstmt["GrantTable"]).Exec(TID, UID, accesstype)
+		_, err := transaction.Stmt(server.Serv.Dbstmt["GrantTable"]).Exec(TID, UID, accesstype)
 		if err != nil {
 			response.InternalError(writer)
-			global.Serv.ErrorLog.Println(err)
+			server.Serv.ErrorLog.Println(err)
 			return
 		}
 	}
 
 	if err := transaction.Commit(); err != nil {
 		response.InternalError(writer)
-		global.Serv.ErrorLog.Println(err)
+		server.Serv.ErrorLog.Println(err)
 		return
 	}
 

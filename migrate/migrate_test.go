@@ -73,7 +73,7 @@ func TestBasicMigrate(t *testing.T) {
 	err = utils.ConnectDb(conn, dbname)
 	assert.Nil(t, err) // Ensure no error during connecting to the database
 
-	data, err := utils.QueryData(conn, "select * from t1 where id == 777")
+	data, err := utils.QueryData(conn, "select * from t1 where id == 777;")
 	assert.Nil(t, err)
 
 	res := make([]TestRow, 1)
@@ -85,7 +85,7 @@ func TestBasicMigrate(t *testing.T) {
 }
 
 func TestBigMigration(t *testing.T) {
-	dbname := "db2"
+	dbname := "db1"
 	connStr := "postgresql://postgres:1242003@localhost:5432/testdb"
 	t.Cleanup(utils.CleanUp)
 

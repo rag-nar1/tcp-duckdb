@@ -95,6 +95,39 @@ func CreateUser(conn *net.TCPConn, userName, password string) error {
 	return nil
 }
 
+func UpdateUserName(conn *net.TCPConn, oldUserName, newUserName string) error {
+	if _, err := conn.Write([]byte("update user username " + oldUserName + " " + newUserName)); err != nil {
+		return err
+	}
+
+	if res := Read(conn); res != response.SuccessMsg {
+		return fmt.Errorf("%s", res)
+	}
+	return nil
+}
+
+func UpdateUserPassword(conn *net.TCPConn, userName, password string) error {
+	if _, err := conn.Write([]byte("update user password " + userName + " " + password)); err != nil {
+		return err
+	}
+
+	if res := Read(conn); res != response.SuccessMsg {
+		return fmt.Errorf("%s", res)
+	}
+	return nil
+}
+
+func UpdateDatabase(conn *net.TCPConn, oldDbname, newDbname string) error {
+	if _, err := conn.Write([]byte("update database " + oldDbname + " " + newDbname)); err != nil {
+		return err
+	}
+
+	if res := Read(conn); res != response.SuccessMsg {
+		return fmt.Errorf("%s", res)
+	}
+	return nil
+}
+
 func CreateTable(conn *net.TCPConn, tablename string) error {
 	if _, err := conn.Write([]byte(fmt.Sprintf("CREATE TABLE %s(id int, name text);", tablename))); err != nil {
 		return err
@@ -268,6 +301,7 @@ func CleanUpLink() error {
 	if _, err := pq.Exec("create database testdb;"); err != nil {
 		return err
 	}
+	pq.Close()
 	pq, err = sql.Open("postgres", "postgresql://postgres:1242003@localhost:5432/testdb")
 	if err != nil {
 		return err

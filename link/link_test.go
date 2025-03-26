@@ -35,7 +35,7 @@ func TestBasicLink(t *testing.T) {
 
 // TestDoubleLink tests linking the same database to two different connections
 func TestDoubleLink(t *testing.T) {
-	dbname := "db2"
+	dbname := "db1"
 	connStr := "postgresql://postgres:1242003@localhost:5432/testdb"
 	connStr2 := "postgresql://postgres:1242003@localhost:5432/testdb2"
 	t.Cleanup(utils.CleanUp)
@@ -58,7 +58,7 @@ func TestDoubleLink(t *testing.T) {
 
 // TestNormLink tests linking a database with a normal user
 func TestNormLink(t *testing.T) {
-	dbname := "db2"
+	dbname := "db3"
 	connStr := "postgresql://postgres:1242003@localhost:5432/testdb"
 	t.Cleanup(utils.CleanUp)
 
