@@ -1,6 +1,8 @@
 package login
 
 import (
+	"errors"
+
 	response "github.com/rag-nar1/TCP-Duckdb/response"
 	global "github.com/rag-nar1/TCP-Duckdb/server"
 	utils "github.com/rag-nar1/TCP-Duckdb/utils"
@@ -22,7 +24,7 @@ func Handler(reader *bufio.Reader, writer *bufio.Writer, UID *int, userName, pri
 	request := strings.Split(string(route[0:n]), " ")
 	if request[0] != "login" || len(request) != 3 {
 		response.BadRequest(writer)
-		return err
+		return errors.New(response.BadRequestMsg)
 	}
 	// validate the userName and password
 	var password string

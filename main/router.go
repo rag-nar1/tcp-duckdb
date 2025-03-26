@@ -9,6 +9,7 @@ import (
 	migrate "github.com/rag-nar1/TCP-Duckdb/migrate"
 	response "github.com/rag-nar1/TCP-Duckdb/response"
 	global "github.com/rag-nar1/TCP-Duckdb/server"
+	"github.com/rag-nar1/TCP-Duckdb/update"
 	utils "github.com/rag-nar1/TCP-Duckdb/utils"
 
 	"bufio"
@@ -52,7 +53,7 @@ func Router(UID int, UserName, privilege string, reader *bufio.Reader, writer *b
 		req := strings.Split(string(rawreq[0:n]), " ")
 		utils.TrimList(req)
 
-		if req[0] != "connect" && req[0] != "create" && req[0] != "grant" && req[0] != "migrate" && req[0] != "link" {
+		if req[0] != "connect" && req[0] != "create" && req[0] != "update" && req[0] != "grant" && req[0] != "migrate" && req[0] != "link" {
 			response.BadRequest(writer)
 			continue
 		}
@@ -82,6 +83,10 @@ func Router(UID int, UserName, privilege string, reader *bufio.Reader, writer *b
 
 		if req[0] == "migrate" {
 			migrate.Handler(privilege, req[1:], writer)
+		}
+
+		if req[0] == "update" {
+			update.Handler(privilege, req[1:], writer)
 		}
 	}
 

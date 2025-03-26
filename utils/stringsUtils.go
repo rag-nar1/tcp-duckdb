@@ -1,6 +1,9 @@
 package utils
 
-import "strings"
+import (
+	"os"
+	"strings"
+)
 
 
 func Trim(s string) string {
@@ -26,3 +29,7 @@ func TrimList(list []string) {
 		list[i] = Trim(list[i])
 	}
 }	
+
+func UserDbPath(dbname string) string {
+	return os.Getenv("DBdir") + "users/" + dbname + ".db"
+}

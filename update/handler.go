@@ -15,7 +15,7 @@ func Handler(privilege string, req []string, writer *bufio.Writer) {
 		return
 	}
 
-	if req[0] != "database" && req[1] != "user" {
+	if req[0] != "database" && req[0] != "user" {
 		response.BadRequest(writer)
 		return
 	}

@@ -19,10 +19,8 @@ var preparedStmtStrings = [][]string{
 	{"GrantTable",          "INSERT OR IGNORE INTO tableprivilege(tableid, userid, tableprivilege) VALUES(?, ?, ?);"},
 	{"CreateTable",         "INSERT OR IGNORE INTO tables(tablename, dbid) VALUES(?, ?);"},
 	{"CreateLink",          "INSERT OR IGNORE INTO postgres(dbid, connstr) VALUES(?, ?);"},
-	{"CreateKey",           "INSERT OR IGNORE INTO keys(dbid, key) VALUES(?, ?);"},
 	{"CheckLink",			"SELECT COUNT(*) FROM postgres WHERE dbid == ?;"},
 	{"SelectLink",			"SELECT connstr FROM postgres WHERE dbid == ?;"},
-	{"SelectKey",			"SELECT key FROM keys WHERE dbid == ?;"},
 }
 
 var DbPoolSize uint = 1 << 2 // 4 db connections for testing will be 16 for production

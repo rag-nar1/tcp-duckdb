@@ -2,6 +2,7 @@ package update
 
 import (
 	"bufio"
+	"os"
 
 	"github.com/rag-nar1/TCP-Duckdb/response"
 	"github.com/rag-nar1/TCP-Duckdb/server"
@@ -18,7 +19,17 @@ func UpdateDatabase(writer *bufio.Writer, oldDbname, newDbName string) {
 		return
 	}
 
-	if _, err := server.Serv.Dbstmt["UpadteDB"].Exec(newDbName, DBID); err != nil {
+	if err := os.Rename(utils.UserDbPath(oldDbname), utils.UserDbPath(newDbName)); err != nil {
+		response.InternalError(writer)
+		server.Serv.ErrorLog.Println(err)
+		return
+	}
+
+	if _, err := server.Serv.Dbstmt["UpdateDB"].Exec(newDbName, DBID); err != nil {
+		if err := os.Rename(utils.UserDbPath(newDbName), utils.UserDbPath(oldDbname)); err != nil {
+			response.InternalError(writer)
+			server.Serv.ErrorLog.Println(err)
+		}
 		response.InternalError(writer)
 		server.Serv.ErrorLog.Println(err)
 		return
