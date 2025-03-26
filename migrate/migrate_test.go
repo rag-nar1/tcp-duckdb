@@ -85,7 +85,7 @@ func TestBasicMigrate(t *testing.T) {
 }
 
 func TestBigMigration(t *testing.T) {
-	dbname := "db2"
+	dbname := "db1"
 	connStr := "postgresql://postgres:1242003@localhost:5432/testdb"
 	t.Cleanup(utils.CleanUp)
 

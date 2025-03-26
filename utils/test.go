@@ -301,6 +301,7 @@ func CleanUpLink() error {
 	if _, err := pq.Exec("create database testdb;"); err != nil {
 		return err
 	}
+	pq.Close()
 	pq, err = sql.Open("postgres", "postgresql://postgres:1242003@localhost:5432/testdb")
 	if err != nil {
 		return err

@@ -36,11 +36,13 @@ func HandleRequest(rh *RequestHandler, curr *Request) {
 		}
 
 		if err != nil {
+			close(curr.Response)
 			curr.Err <- err
 			break
 		}
 
 		curr.Response <- connection
+		close(curr.Err)
 		break
 	}
 }

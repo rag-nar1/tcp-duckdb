@@ -1,33 +1,23 @@
 package connect
 
 import (
-	internal "github.com/rag-nar1/TCP-Duckdb/internal"
-	response "github.com/rag-nar1/TCP-Duckdb/response"
-	global "github.com/rag-nar1/TCP-Duckdb/server"
-	utils "github.com/rag-nar1/TCP-Duckdb/utils"
-
 	"bufio"
-	"database/sql"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
-
-	_ "github.com/lib/pq"
-	_ "github.com/marcboeker/go-duckdb"
+	
+	"github.com/rag-nar1/TCP-Duckdb/internal"
+	"github.com/rag-nar1/TCP-Duckdb/response"
+	"github.com/rag-nar1/TCP-Duckdb/utils"
+	"github.com/rag-nar1/TCP-Duckdb/pool"
+	"github.com/rag-nar1/TCP-Duckdb/server"
 )
 
-func QueryService(server *global.Server, query, username, dbname, privilege string, UID, DBID int, writer *bufio.Writer) {
-	db, err := sql.Open("duckdb", os.Getenv("DBdir")+"/users/"+dbname+".db")
-	if err != nil {
-		response.InternalError(writer)
-		server.ErrorLog.Println(err)
-		return
-	}
+func QueryService(Dbconn pool.Connection,query, username, dbname, privilege string, UID, DBID int, writer *bufio.Writer) {
 
-	data, err := Query(server, query, privilege, UID, DBID, db)
+	data, err := Query(query, privilege, UID, DBID, Dbconn.DB())
 	if err != nil {
-		server.ErrorLog.Println(err)
+		server.Serv.ErrorLog.Println(err)
 		if err.Error() == fmt.Errorf(response.UnauthorizedMSG).Error() {
 			response.UnauthorizedError(writer)
 			return
@@ -43,19 +33,12 @@ func QueryService(server *global.Server, query, username, dbname, privilege stri
 	response.WriteData(writer, data)
 }
 
-func Transaction(server *global.Server, UID, DBID int, username, dbname, privilege string, reader *bufio.Reader, writer *bufio.Writer) {
+func Transaction(Dbconn pool.Connection, UID, DBID int, username, dbname, privilege string, reader *bufio.Reader, writer *bufio.Writer) {
 	buffer := make([]byte, 4096)
-	db, err := sql.Open("duckdb", os.Getenv("DBdir")+"/users/"+dbname+".db")
+	transaction, err := Dbconn.DB().Begin()
 	if err != nil {
 		response.InternalError(writer)
-		server.ErrorLog.Println(err)
-		return
-	}
-
-	transaction, err := db.Begin()
-	if err != nil {
-		response.InternalError(writer)
-		server.ErrorLog.Println(err)
+		server.Serv.ErrorLog.Println(err)
 		return
 	}
 	defer transaction.Rollback()
@@ -64,7 +47,7 @@ func Transaction(server *global.Server, UID, DBID int, username, dbname, privile
 		n, err := reader.Read(buffer)
 		if err != nil {
 			response.InternalError(writer)
-			server.ErrorLog.Println("ERROR", err)
+			server.Serv.ErrorLog.Println("ERROR", err)
 			return
 		}
 
@@ -75,15 +58,15 @@ func Transaction(server *global.Server, UID, DBID int, username, dbname, privile
 		if strings.HasPrefix(query, "commit") {
 			err = transaction.Commit()
 			if err != nil {
-				server.ErrorLog.Println(err)
+				server.Serv.ErrorLog.Println(err)
 				response.Error(writer, []byte(err.Error()))
 			}
 			return
 		}
 
-		data, err := Query(server, query, privilege, UID, DBID, transaction)
+		data, err := Query(query, privilege, UID, DBID, transaction)
 		if err != nil {
-			server.ErrorLog.Println(err)
+			server.Serv.ErrorLog.Println(err)
 			if err.Error() == fmt.Errorf(response.UnauthorizedMSG).Error() {
 				response.UnauthorizedError(writer)
 				return
@@ -100,9 +83,9 @@ func Transaction(server *global.Server, UID, DBID int, username, dbname, privile
 
 }
 
-func Query(server *global.Server, query, privilege string, UID, DBID int, executer internal.SQLExecutor) ([]byte, error) {
+func Query(query, privilege string, UID, DBID int, executer internal.SQLExecutor) ([]byte, error) {
 	query = strings.ToLower(query)
-	authraized, err := Access(server, query, privilege, UID, DBID)
+	authraized, err := Access(query, privilege, UID, DBID)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +104,7 @@ func Query(server *global.Server, query, privilege string, UID, DBID int, execut
 	}
 
 	if strings.HasPrefix(query, "create") {
-		err := internal.CREATE(executer, server.Sqlitedb, server.Dbstmt["CreateTable"], query, DBID)
+		err := internal.CREATE(executer, server.Serv.Sqlitedb, server.Serv.Dbstmt["CreateTable"], query, DBID)
 		if err != nil {
 			return nil, err
 		}
@@ -138,7 +121,7 @@ func Query(server *global.Server, query, privilege string, UID, DBID int, execut
 	return data, nil
 }
 
-func Access(server *global.Server, query, privilege string, UID, DBID int) (bool, error) {
+func Access(query, privilege string, UID, DBID int) (bool, error) {
 	query = strings.ToLower(query)
 
 	if privilege != "super" {
@@ -146,7 +129,7 @@ func Access(server *global.Server, query, privilege string, UID, DBID int) (bool
 		if err != nil {
 			return false, fmt.Errorf("%s", response.UnauthorizedMSG)
 		}
-		hasaccess, err := internal.CheckAccesOverTable(server.Sqlitedb, server.Dbstmt["CheckTableAccess"], query, UID, DBID)
+		hasaccess, err := internal.CheckAccesOverTable(server.Serv.Sqlitedb, server.Serv.Dbstmt["CheckTableAccess"], query, UID, DBID)
 		if err != nil {
 			return false, fmt.Errorf("%s", response.UnauthorizedMSG)
 		}

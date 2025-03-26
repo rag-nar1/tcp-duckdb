@@ -86,4 +86,5 @@ func Init() {
 
 	Serv.CreateSuper()
 	Serv.PrepareStmt()
+	go Serv.Pool.Spin()
 }

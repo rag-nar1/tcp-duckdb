@@ -147,6 +147,12 @@ func Migrate(DBID int, connStr string, stmt *sql.Stmt, postgres, duck, server *s
 		return err
 	}
 
+	// Make sure to detach the database at the end of the function to close connections
+	defer func() {
+		// We ignore any errors from detach since we're in cleanup mode
+		_, _ = duck.Exec("DETACH postgres_db;")
+	}()
+
 	for _, table := range tables {
 		postgrestable := "postgres_db." + table.name
 		stmt := fmt.Sprintf("CREATE TABLE %s AS FROM %s;", table.name, postgrestable)

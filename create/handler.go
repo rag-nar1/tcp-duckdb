@@ -1,9 +1,9 @@
 package create
 
 import (
-	response "github.com/rag-nar1/TCP-Duckdb/response"
-
 	"bufio"
+	
+	"github.com/rag-nar1/TCP-Duckdb/response"
 
 	_ "github.com/lib/pq"
 	_ "github.com/marcboeker/go-duckdb"

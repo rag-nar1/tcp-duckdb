@@ -2,33 +2,29 @@ package connect
 
 import (
 	"bufio"
-	"database/sql"
-	"os"
+
 	"strings"
 
-	response "github.com/rag-nar1/TCP-Duckdb/response"
-	global "github.com/rag-nar1/TCP-Duckdb/server"
-	utils "github.com/rag-nar1/TCP-Duckdb/utils"
-
-	// "github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
-	_ "github.com/marcboeker/go-duckdb"
+	"github.com/rag-nar1/TCP-Duckdb/request_handler"
+	"github.com/rag-nar1/TCP-Duckdb/response"
+	"github.com/rag-nar1/TCP-Duckdb/server"
+	"github.com/rag-nar1/TCP-Duckdb/utils"
 )
 
 // connect dbname
-func Handler(server *global.Server, UID int, UserName, privilege, dbname string, reader *bufio.Reader, writer *bufio.Writer) {
+func Handler(UID int, UserName, privilege, dbname string, reader *bufio.Reader, writer *bufio.Writer) {
 	// check for db existense
 	var DBID int
-	if err := server.Dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID); err != nil {
+	if err := server.Serv.Dbstmt["SelectDB"].QueryRow(dbname).Scan(&DBID); err != nil {
 		response.DoesNotExistDatabse(writer, dbname)
 		return
 	}
 
 	// check for authrization
 	var access int
-	if err := server.Dbstmt["CheckDbAccess"].QueryRow(UID, DBID).Scan(&access); err != nil {
+	if err := server.Serv.Dbstmt["CheckDbAccess"].QueryRow(UID, DBID).Scan(&access); err != nil {
 		response.InternalError(writer)
-		server.ErrorLog.Println(err)
+		server.Serv.ErrorLog.Println(err)
 		return
 	}
 
@@ -37,20 +33,25 @@ func Handler(server *global.Server, UID int, UserName, privilege, dbname string,
 		return
 	}
 
-	buffer := make([]byte, 4096)
-	_, err := sql.Open("duckdb", os.Getenv("DBdir")+"/users/"+dbname+".db")
+	req := request_handler.NewRequest(dbname)
+	server.Serv.Pool.Push(req)
+
+	DbConn, err := utils.OpenDb(server.Serv.Pool, dbname)
 	if err != nil {
 		response.InternalError(writer)
-		server.ErrorLog.Println(err)
+		server.Serv.ErrorLog.Println(err)
 		return
 	}
+	defer DbConn.Destroy()
+	
 	response.Success(writer)
-
+	
+	buffer := make([]byte, 4096)
 	for {
 		n, err := reader.Read(buffer)
 		if err != nil {
 			response.InternalError(writer)
-			server.ErrorLog.Println(err)
+			server.Serv.ErrorLog.Println(err)
 			return
 		}
 
@@ -61,12 +62,11 @@ func Handler(server *global.Server, UID int, UserName, privilege, dbname string,
 				response.BadRequest(writer)
 				continue
 			}
-			Transaction(server, UID, DBID, UserName, dbname, privilege, reader, writer)
+			Transaction(DbConn, UID, DBID, UserName, dbname, privilege, reader, writer)
 			continue
 		}
 
 		// single query
-		QueryService(server, utils.Trim(string(buffer[0:n])), UserName, dbname, privilege, UID, DBID, writer)
+		QueryService(DbConn, utils.Trim(string(buffer[0:n])), UserName, dbname, privilege, UID, DBID, writer)
 	}
-
 }

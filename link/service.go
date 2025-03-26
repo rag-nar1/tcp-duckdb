@@ -1,17 +1,14 @@
 package link
 
 import (
-	internal "github.com/rag-nar1/TCP-Duckdb/internal"
-	response "github.com/rag-nar1/TCP-Duckdb/response"
-	global "github.com/rag-nar1/TCP-Duckdb/server"
-	utils "github.com/rag-nar1/TCP-Duckdb/utils"
-
 	"bufio"
 	"database/sql"
 	"os"
-
-	_ "github.com/lib/pq"
-	_ "github.com/marcboeker/go-duckdb"
+	
+	"github.com/rag-nar1/TCP-Duckdb/internal"
+	"github.com/rag-nar1/TCP-Duckdb/response"
+	"github.com/rag-nar1/TCP-Duckdb/server"
+	"github.com/rag-nar1/TCP-Duckdb/utils"
 )
 
 func Link(writer *bufio.Writer, duck, postgres *sql.DB, connStr string, DBID int) {
@@ -19,15 +16,15 @@ func Link(writer *bufio.Writer, duck, postgres *sql.DB, connStr string, DBID int
 	encryptedConnStr, err := utils.Encrypt(connStr, []byte(os.Getenv("ENCRYPTION_KEY")))
 	if err != nil {
 		response.InternalError(writer)
-		global.Serv.ErrorLog.Println(err)
+		server.Serv.ErrorLog.Println(err)
 		return
 	}
 
 	// start a transaction to insert the connstr
-	txServer, err := global.Serv.Sqlitedb.Begin()
+	txServer, err := server.Serv.Sqlitedb.Begin()
 	if err != nil {
 		response.InternalError(writer)
-		global.Serv.ErrorLog.Println(err)
+		server.Serv.ErrorLog.Println(err)
 		return
 	}
 	defer txServer.Rollback()
@@ -35,7 +32,7 @@ func Link(writer *bufio.Writer, duck, postgres *sql.DB, connStr string, DBID int
 	txDuck, err := duck.Begin()
 	if err != nil {
 		response.InternalError(writer)
-		global.Serv.ErrorLog.Println(err)
+		server.Serv.ErrorLog.Println(err)
 		return
 	}
 	defer txDuck.Rollback()
@@ -43,49 +40,49 @@ func Link(writer *bufio.Writer, duck, postgres *sql.DB, connStr string, DBID int
 	txPg, err := postgres.Begin()
 	if err != nil {
 		response.InternalError(writer)
-		global.Serv.ErrorLog.Println(err)
+		server.Serv.ErrorLog.Println(err)
 		return
 	}
 	defer txPg.Rollback()
 
 	// insert the connstr
-	_, err = txServer.Stmt(global.Serv.Dbstmt["CreateLink"]).Exec(DBID, encryptedConnStr)
+	_, err = txServer.Stmt(server.Serv.Dbstmt["CreateLink"]).Exec(DBID, encryptedConnStr)
 	if err != nil {
 		response.InternalError(writer)
-		global.Serv.ErrorLog.Println(err)
+		server.Serv.ErrorLog.Println(err)
 		return
 	}
 
 	// migrate schema
-	err = internal.Migrate(DBID, connStr, global.Serv.Dbstmt["CreateTable"], txPg, txDuck, txServer)
+	err = internal.Migrate(DBID, connStr, server.Serv.Dbstmt["CreateTable"], txPg, txDuck, txServer)
 	if err != nil {
-		global.Serv.ErrorLog.Println(err)
+		server.Serv.ErrorLog.Println(err)
 		response.InternalError(writer)
 		return
 	}
 
 	err = internal.Audit(txPg)
 	if err != nil {
-		global.Serv.ErrorLog.Println(err)
+		server.Serv.ErrorLog.Println(err)
 		response.InternalError(writer)
 		return
 	}
 
 	err = txPg.Commit()
 	if err != nil {
-		global.Serv.ErrorLog.Println(err)
+		server.Serv.ErrorLog.Println(err)
 		response.InternalError(writer)
 		return
 	}
 	err = txDuck.Commit()
 	if err != nil {
-		global.Serv.ErrorLog.Println(err)
+		server.Serv.ErrorLog.Println(err)
 		response.InternalError(writer)
 		return
 	}
 	err = txServer.Commit()
 	if err != nil {
-		global.Serv.ErrorLog.Println(err)
+		server.Serv.ErrorLog.Println(err)
 		response.InternalError(writer)
 		return
 	}

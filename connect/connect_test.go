@@ -10,6 +10,7 @@ import (
 
 // TestConnectBasic tests the basic connection flow
 func TestConnectBasic(t *testing.T) {
+	t.Cleanup(utils.CleanUp)
 	conn := utils.Connection()         // Establish a new connection
 	err := utils.LoginAsAdmin(conn)    // Login as admin
 	assert.Nil(t, err)                 // Ensure no error occurred during login
@@ -21,6 +22,7 @@ func TestConnectBasic(t *testing.T) {
 
 // TestConnectFail tests the connection to a non-existent database
 func TestConnectFail(t *testing.T) {
+	t.Cleanup(utils.CleanUp)
 	conn := utils.Connection()                   // Establish a new connection
 	err := utils.LoginAsAdmin(conn)              // Login as admin
 	assert.Nil(t, err)                           // Ensure no error occurred during login
