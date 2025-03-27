@@ -7,6 +7,11 @@
 - [Setup Guide](#setup-guide)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
+- [Tools and Technologies](#tools-and-technologies)
+  - [Programming Languages](#programming-languages)
+  - [Database Technologies](#database-technologies)
+  - [Libraries and Frameworks](#libraries-and-frameworks)
+  - [Development Tools](#development-tools)
 - [Command Reference](#command-reference)
   - [1. Login Command](#1-login-command)
   - [2. Create Command](#2-create-command)
@@ -96,6 +101,47 @@ make build
 ```bash
 make run
 ```
+
+## Tools and Technologies
+
+### Programming Languages
+
+- **Go (Golang)**: The primary programming language used for the entire codebase. Go was chosen for its efficiency in building networked services, excellent concurrency support through goroutines, and strong standard library.
+
+### Database Technologies
+
+- **DuckDB**: A lightweight, in-process analytical database management system. It serves as the primary storage engine for the application, providing fast analytical query capabilities.
+
+- **SQLite**: Used for storing user authentication and permission data. SQLite was chosen for its simplicity, reliability, and zero-configuration nature.
+
+- **PostgreSQL**: Supported as an optional integration, allowing linking and synchronization with PostgreSQL databases. The system can replicate schema and data from PostgreSQL into DuckDB.
+
+### Libraries and Frameworks
+
+- **go-duckdb**: The Go driver for DuckDB that enables interaction with DuckDB databases from Go code.
+
+- **go-sqlite3**: The Go interface to the SQLite3 database, used for user management.
+
+- **lib/pq**: PostgreSQL driver for Go, used for connecting to PostgreSQL databases when using the link functionality.
+
+- **godotenv**: Used for loading environment variables from .env files.
+
+- **Standard Library Packages**: 
+  - `net`: Core networking functionality for TCP server implementation
+  - `database/sql`: Database interaction
+  - `sync`: Synchronization primitives for concurrent operations
+  - `bufio`: Buffered I/O operations
+  - `crypto`: Cryptographic functions for secure password hashing
+
+### Development Tools
+
+- **Makefile**: Used for build automation, with predefined tasks for building, running, and code formatting.
+
+- **Git**: Version control system with custom pre-commit hooks for code formatting.
+
+- **Environment Configuration**: Uses .env files for configuration management.
+
+- **Connection Pool Implementation**: Custom LRU (Least Recently Used) cache implementation for efficient database connection management.
 
 ## Command Reference
 
