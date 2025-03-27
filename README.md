@@ -101,24 +101,29 @@ make run
 
 ### 1. Login Command
 
-Authenticates a user to access the server.
+**[All Users]**
+
+Authenticates a user to access the server. This is the first command that must be executed before any other operation can be performed.
 
 ```
 login [username] [password]
 ```
 
-Implementation:
-```go
-// Login handler
-func Handler(reader *bufio.Reader, writer *bufio.Writer, UID *int, userName, privilege *string) error {
-    // Read login request, validate credentials, set user context
-}
+**Authentication Process:**
+1. The client sends the login command with username and password
+2. The server validates the credentials against the SQLite user database
+3. If successful, a user session is established with appropriate privileges
+4. All subsequent commands will operate under this authenticated user context
 
-// Login service
-func Login(UserName, password string, Dbstmt *sql.Stmt) (int, string, error) {
-    // Authenticate user against database
-}
-```
+**Super User Information:**
+- The default super user is `duck` with initial password `duck`
+- The super user has full administrative privileges including:
+  - Creating and managing databases
+  - Creating and managing users
+  - Granting permissions
+  - Linking with PostgreSQL databases
+  - Performing update operations
+- For security reasons, it is strongly recommended to change the super user password after initial setup using the update command
 
 **Example:**
 ```
@@ -130,6 +135,8 @@ success
 ```
 
 ### 2. Create Command
+
+**[Super User Only]**
 
 #### Create Database
 Creates a new DuckDB database (requires super user privileges).
@@ -165,6 +172,8 @@ success
 
 ### 3. Connect Command
 
+**[All Users]**
+
 Connects to an existing database to execute queries.
 
 ```
@@ -192,6 +201,8 @@ SELECT * FROM users;
 ```
 
 ### 4. Grant Command
+
+**[Super User Only]**
 
 #### Grant Database Access
 Grants database access to a user (requires super user privileges).
@@ -237,6 +248,8 @@ success
 
 ### 5. Link Command
 
+**[Super User Only]**
+
 Links a DuckDB database with a PostgreSQL database (requires super user privileges).
 
 ```
@@ -261,6 +274,8 @@ success
 
 ### 6. Migrate Command
 
+**[Super User Only]**
+
 Synchronizes changes from a linked PostgreSQL database to DuckDB (requires super user privileges).
 
 ```
@@ -282,6 +297,8 @@ success
 ```
 
 ### 7. Update Command
+
+**[Super User Only]**
 
 Updates database names or user information (requires super user privileges).
 
@@ -344,6 +361,8 @@ success
 ```
 
 ## Transaction Management
+
+**[All Users with Database Access]**
 
 After connecting to a database, you can manage transactions:
 
