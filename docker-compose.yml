@@ -14,7 +14,7 @@ services:
     environment:
       - ServerPort=4000
       - ServerAddr=0.0.0.0
-      - DBdir=/app/storge/server/
+      - DBdir=/app/storge/
       - ServerDbFile=db.sqlite3
       - ENCRYPTION_KEY=A15pG0m3hwf0tfpVW6m92eZ6vRmAQA3C
     command: >
