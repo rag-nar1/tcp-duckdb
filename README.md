@@ -63,13 +63,113 @@ TCP-DuckDB is a TCP server implementation that provides networked access to Duck
 
 ## Setup Guide
 
+### Installation
+
 ### Prerequisites
 
-- Go 1.16 or higher
-- DuckDB
-- PostgreSQL (optional, for linking functionality)
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) installed on your system
+- Git to clone this repository
 
-### Installation
+### Quick Start
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/rag-nar1/TCP-Duckdb.git
+   cd TCP-Duckdb
+   ```
+
+2. Build and start the server using Docker Compose:
+   ```bash
+   docker compose up -d
+   ```
+
+3. Check logs to verify the server is running:
+   ```bash
+   docker logs tcp-duckdb-tcp-duckdb-1
+   ```
+   
+   You should see output like:
+   ```
+   INFO    YYYY/MM/DD HH:MM:SS Super user created
+   INFO    YYYY/MM/DD HH:MM:SS listening to 0.0.0.0:4000
+   ```
+
+4. Stop the server when finished:
+   ```bash
+   docker compose down
+   ```
+
+### Manual Build
+
+If you prefer to build and run manually:
+
+1. Build the Docker image:
+   ```bash
+   docker build -t tcp-duckdb .
+   ```
+
+2. Run the container:
+   ```bash
+   docker run -d -p 4000:4000 \
+     -v $(pwd)/storge:/app/storge \
+     -v $(pwd)/server:/app/server \
+     -e ServerPort=4000 \
+     -e ServerAddr=0.0.0.0 \
+     -e DBdir=/app/storge/server/ \
+     -e ServerDbFile=db.sqlite3 \
+     -e ENCRYPTION_KEY=A15pG0m3hwf0tfpVW6m92eZ6vRmAQA3C \
+     --name tcp-duckdb-container \
+     tcp-duckdb
+   ```
+
+### Configuration
+
+The server can be configured using environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| ServerPort | Port the server listens on | 4000 |
+| ServerAddr | Address the server binds to | 0.0.0.0 |
+| DBdir | Directory for the SQLite database | /app/storge/server/ |
+| ServerDbFile | SQLite database filename | db.sqlite3 |
+| ENCRYPTION_KEY | Key used for encryption | `ENCRYPTION_KEY` |
+
+You can modify these values in the `docker-compose.yml` file or pass them directly when running the container.
+
+### Development
+
+To build and run the application locally:
+
+1. Install Go 1.24 or later
+2. Install SQLite development libraries
+3. Clone the repository
+4. Run:
+   ```bash
+   go mod download
+   go build -o ./build/server main/*
+   ./build/server
+   ```
+
+### Troubleshooting
+
+**Database initialization errors**
+
+If you see errors related to database tables, ensure the schema is correctly applied:
+
+```bash
+# Connect to the running container
+docker exec -it tcp-duckdb-tcp-duckdb-1 bash
+
+# Verify the database exists
+ls -la /app/storge/server/
+
+# Manually apply the schema if needed
+sqlite3 /app/storge/server/db.sqlite3 < /app/storge/server/scheme.sql
+```
+
+**Connection issues**
+
+The server listens on TCP port 4000. Verify the port is correctly mapped and not blocked by a firewall.
 
 1. Clone the repository:
 ```bash

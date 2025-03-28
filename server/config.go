@@ -17,7 +17,7 @@ type Server struct {
 	// db connection bool
 	Sqlitedb *sql.DB
 	Dbstmt   map[string]*sql.Stmt
-	Pool 	 *request_handler.RequestHandler
+	Pool     *request_handler.RequestHandler
 	Port     string
 	Address  string
 	InfoLog  *log.Logger
@@ -69,15 +69,26 @@ func NewServer() error {
 		Dbstmt:   make(map[string]*sql.Stmt),
 		InfoLog:  log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime),
 		ErrorLog: log.New(os.Stdout, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile),
-		Pool: request_handler.NewRequestHandler(),
+		Pool:     request_handler.NewRequestHandler(),
 	}
 	Serv.Address = os.Getenv("ServerAddr") + ":" + Serv.Port
 	return nil
 }
 
 func Init() {
-	if err := godotenv.Load("../.env"); err != nil {
-		Serv.ErrorLog.Fatal(err)
+	// Create default loggers for initialization errors before Serv is ready
+	errorLog := log.New(os.Stdout, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
+
+	// First try to use existing environment variables
+
+	// Only try to load .env file if ServerAddr is not set
+	if os.Getenv("ServerAddr") == "" {
+		// Try to load .env file from different locations
+		err1 := godotenv.Load(".env")
+		err2 := godotenv.Load("../.env")
+		if err1 != nil && err2 != nil {
+			errorLog.Fatal("Failed to load .env file:", err1, err2)
+		}
 	}
 
 	if err := NewServer(); err != nil {
