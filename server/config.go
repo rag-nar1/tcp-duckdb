@@ -53,14 +53,43 @@ func (s *Server) CreateSuper() {
 	}
 }
 
-func NewServer() error {
-	dbconn, err := sql.Open("sqlite3", os.Getenv("DBdir")+os.Getenv("ServerDbFile"))
+func ExecuteScheme(db *sql.DB) error {
+	scheme, err := os.ReadFile(os.Getenv("DBdir") + "server/scheme.sql")
 	if err != nil {
 		return err
 	}
+	_, err = db.Exec(string(scheme))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func NewServer() error {
+	// Check if database file exists
+	dbPath := os.Getenv("DBdir") + "server/" + os.Getenv("ServerDbFile")
+	executeScheme := false
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		executeScheme = true
+	}
+
+	// Open database connection
+	dbconn, err := sql.Open("sqlite3", dbPath)
+	if err != nil {
+		return err
+	}
+
+	// Test connection
 	err = dbconn.Ping()
 	if err != nil {
 		return err
+	}
+
+	if executeScheme {
+		err = ExecuteScheme(dbconn)
+		if err != nil {
+			return err
+		}
 	}
 
 	Serv = &Server{

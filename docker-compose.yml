@@ -17,8 +17,5 @@ services:
       - DBdir=/app/storge/server/
       - ServerDbFile=db.sqlite3
       - ENCRYPTION_KEY=A15pG0m3hwf0tfpVW6m92eZ6vRmAQA3C
-    command: >
-      sh -c "mkdir -p /app/storge/server && 
-             sqlite3 /app/storge/server/db.sqlite3 < /app/storge/server/scheme.sql && 
-             /app/build/server"
+    command: /app/build/server
     restart: unless-stopped 
