@@ -23,7 +23,7 @@ func CreateDB(dbname string, writer *bufio.Writer) {
 	}
 
 	// create file
-	_, err = sql.Open("duckdb", os.Getenv("DBdir")+"/users/"+dbname+".db")
+	_, err = sql.Open("duckdb", os.Getenv("DBdir")+"users/"+dbname+".db")
 	if err != nil {
 		server.Serv.ErrorLog.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func CreateDB(dbname string, writer *bufio.Writer) {
 	if err != nil {
 		response.Error(writer, []byte("could not create databse"))
 
-		err = os.Remove(os.Getenv("DBdir") + "/users/" + dbname + ".db")
+		err = os.Remove(os.Getenv("DBdir") + "users/" + dbname + ".db")
 		if err != nil {
 			server.Serv.ErrorLog.Fatal(err)
 		}
