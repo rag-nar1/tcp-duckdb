@@ -80,7 +80,7 @@ TCP-DuckDB is a TCP server implementation that provides networked access to Duck
 
 2. Build and start the server using Docker Compose:
    ```bash
-   docker compose up -d
+   docker compose up --build
    ```
 
 3. Check logs to verify the server is running:
