@@ -46,6 +46,8 @@
     - [11. Update Module](#11-update-module-update)
     - [12. Utils Module](#12-utils-module-utils)
   - [Request Processing Flow](#request-processing-flow)
+- [Todo](#todo)
+- [License](#license)
 
 ## Introduction
 
@@ -820,3 +822,20 @@ Provides utility functions used throughout the application:
    - Link operations copy schema and data from PostgreSQL
    - Migrate operations synchronize changes from PostgreSQL
    - Audit tables track changes for synchronization 
+
+## Todo
+
+This section outlines planned enhancements and improvements for the TCP-DuckDB project:
+
+| Task | Description | Priority |
+|------|-------------|----------|
+| Client Library | Develop client libraries in multiple languages (Python, JavaScript, Java), go is in progress | High |
+| Connection Encryption | Implement TLS/SSL for secure client-server communication | High |
+| Change Data Capture | Swap the Audit table with CDC using [Debezium](https://debezium.io/) and [kafka](https://kafka.apache.org/) | Medium |
+| Backup & Restore | Add automated backup and point-in-time recovery functionality | Medium |
+| Query Caching | Add intelligent query result caching | Low |
+| Web Admin Interface | Create a web-based administration interface | Low |
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. 
