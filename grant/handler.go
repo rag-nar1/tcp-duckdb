@@ -3,7 +3,7 @@ package grant
 import (
 	"bufio"
 
-	response "github.com/rag-nar1/TCP-Duckdb/response"
+	response "github.com/rag-nar1/tcp-duckdb/response"
 )
 
 // database [dbname] [username] [accesstype] ,

@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rag-nar1/TCP-Duckdb/response"
+	"github.com/rag-nar1/tcp-duckdb/response"
 
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq" // Import the PostgreSQL driver

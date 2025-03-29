@@ -3,7 +3,7 @@ package grant_test
 import (
 	"testing"
 
-	"github.com/rag-nar1/TCP-Duckdb/utils"
+	"github.com/rag-nar1/tcp-duckdb/utils"
 	"github.com/stretchr/testify/assert"
 )
 

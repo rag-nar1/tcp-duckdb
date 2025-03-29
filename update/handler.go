@@ -3,7 +3,7 @@ package update
 import (
 	"bufio"
 
-	"github.com/rag-nar1/TCP-Duckdb/response"
+	"github.com/rag-nar1/tcp-duckdb/response"
 )
 
 // update databse [dbname] newdbname

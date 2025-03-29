@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/joho/godotenv"
-	"github.com/rag-nar1/TCP-Duckdb/globals"
-	"github.com/rag-nar1/TCP-Duckdb/pool"
+	"github.com/rag-nar1/tcp-duckdb/globals"
+	"github.com/rag-nar1/tcp-duckdb/pool"
 	"github.com/stretchr/testify/assert"
 )
 func CleanUp() {

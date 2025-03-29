@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/joho/godotenv"
-	"github.com/rag-nar1/TCP-Duckdb/request_handler"
+	"github.com/rag-nar1/tcp-duckdb/request_handler"
 
 	"github.com/stretchr/testify/assert"
 )

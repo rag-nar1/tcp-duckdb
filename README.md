@@ -76,7 +76,7 @@ TCP-DuckDB is a TCP server implementation that provides networked access to Duck
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/rag-nar1/TCP-Duckdb.git
+   git clone https://github.com/rag-nar1/tcp-duckdb.git
    cd TCP-Duckdb
    ```
 
@@ -175,7 +175,7 @@ The server listens on TCP port 4000. Verify the port is correctly mapped and not
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/rag-nar1/TCP-Duckdb.git
+git clone https://github.com/rag-nar1/tcp-duckdb.git
 cd TCP-Duckdb
 ```
 

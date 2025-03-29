@@ -3,7 +3,7 @@ package create
 import (
 	"bufio"
 	
-	"github.com/rag-nar1/TCP-Duckdb/response"
+	"github.com/rag-nar1/tcp-duckdb/response"
 
 	_ "github.com/lib/pq"
 	_ "github.com/marcboeker/go-duckdb"

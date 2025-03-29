@@ -3,8 +3,8 @@ package utils
 import (
 	"bufio"
 
-	"github.com/rag-nar1/TCP-Duckdb/pool"
-	"github.com/rag-nar1/TCP-Duckdb/request_handler"
+	"github.com/rag-nar1/tcp-duckdb/pool"
+	"github.com/rag-nar1/tcp-duckdb/request_handler"
 )
 
 

@@ -1,4 +1,4 @@
-module github.com/rag-nar1/TCP-Duckdb
+module github.com/rag-nar1/tcp-duckdb
 
 go 1.24
 

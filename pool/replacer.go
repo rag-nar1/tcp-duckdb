@@ -13,7 +13,7 @@ import (
 	"math"
 	"sync"
 
-	"github.com/rag-nar1/TCP-Duckdb/globals"
+	"github.com/rag-nar1/tcp-duckdb/globals"
 )
 
 const ( 

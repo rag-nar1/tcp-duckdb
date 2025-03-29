@@ -1,7 +1,7 @@
 package login
 
 import (
-	utils "github.com/rag-nar1/TCP-Duckdb/utils"
+	utils "github.com/rag-nar1/tcp-duckdb/utils"
 
 	"database/sql"
 )

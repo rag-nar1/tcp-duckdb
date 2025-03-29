@@ -1,6 +1,6 @@
 package request_handler
 
-import "github.com/rag-nar1/TCP-Duckdb/pool"
+import "github.com/rag-nar1/tcp-duckdb/pool"
 
 type Request struct {
 	Dbname   string

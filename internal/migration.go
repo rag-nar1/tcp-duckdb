@@ -1,7 +1,7 @@
 package internal
 
 import (
-	"github.com/rag-nar1/TCP-Duckdb/utils"
+	"github.com/rag-nar1/tcp-duckdb/utils"
 
 	"database/sql"
 	"database/sql/driver"

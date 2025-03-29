@@ -5,9 +5,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/rag-nar1/TCP-Duckdb/globals"
-	"github.com/rag-nar1/TCP-Duckdb/request_handler"
-	"github.com/rag-nar1/TCP-Duckdb/utils"
+	"github.com/rag-nar1/tcp-duckdb/globals"
+	"github.com/rag-nar1/tcp-duckdb/request_handler"
+	"github.com/rag-nar1/tcp-duckdb/utils"
 
 	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"

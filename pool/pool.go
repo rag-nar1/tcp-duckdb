@@ -9,7 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 	
-	"github.com/rag-nar1/TCP-Duckdb/globals"
+	"github.com/rag-nar1/tcp-duckdb/globals"
 	_ "github.com/marcboeker/go-duckdb"
 )
 

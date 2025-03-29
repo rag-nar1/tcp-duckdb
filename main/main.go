@@ -5,7 +5,7 @@ import (
 
 	_ "github.com/marcboeker/go-duckdb"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/rag-nar1/TCP-Duckdb/server"
+	"github.com/rag-nar1/tcp-duckdb/server"
 )
 
 func init() {

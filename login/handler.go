@@ -3,9 +3,9 @@ package login
 import (
 	"errors"
 
-	response "github.com/rag-nar1/TCP-Duckdb/response"
-	global "github.com/rag-nar1/TCP-Duckdb/server"
-	utils "github.com/rag-nar1/TCP-Duckdb/utils"
+	response "github.com/rag-nar1/tcp-duckdb/response"
+	global "github.com/rag-nar1/tcp-duckdb/server"
+	utils "github.com/rag-nar1/tcp-duckdb/utils"
 
 	"bufio"
 	"strings"

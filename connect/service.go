@@ -6,11 +6,11 @@ import (
 	"strconv"
 	"strings"
 	
-	"github.com/rag-nar1/TCP-Duckdb/internal"
-	"github.com/rag-nar1/TCP-Duckdb/response"
-	"github.com/rag-nar1/TCP-Duckdb/utils"
-	"github.com/rag-nar1/TCP-Duckdb/pool"
-	"github.com/rag-nar1/TCP-Duckdb/server"
+	"github.com/rag-nar1/tcp-duckdb/internal"
+	"github.com/rag-nar1/tcp-duckdb/response"
+	"github.com/rag-nar1/tcp-duckdb/utils"
+	"github.com/rag-nar1/tcp-duckdb/pool"
+	"github.com/rag-nar1/tcp-duckdb/server"
 )
 
 func QueryService(Dbconn pool.Connection,query, username, dbname, privilege string, UID, DBID int, writer *bufio.Writer) {
