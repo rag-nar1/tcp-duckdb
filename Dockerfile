@@ -2,9 +2,6 @@ FROM golang:1.24
 
 WORKDIR /app
 
-# Install sqlite3 for database initialization
-RUN apt-get update && apt-get install -y sqlite3
-
 # Copy go mod and sum files
 COPY go.mod go.sum ./
 
