@@ -62,7 +62,7 @@ TCP-DuckDB is a TCP server implementation that provides networked access to Duck
 - **PostgreSQL Integration**: Link with PostgreSQL databases
 - **Transaction Support**: Full transaction support for data operations
 - **Connection Pooling**: Efficient database connection management
-
+![alt text](image/Drawing%202025-04-04%2012.25.23.excalidraw.png)
 ## Setup Guide
 
 ### Installation
