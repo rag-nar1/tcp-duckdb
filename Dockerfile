@@ -28,7 +28,7 @@ RUN touch /app/storge/server/db.sqlite3 && \
 ENV ServerPort=4000
 ENV ServerAddr=0.0.0.0
 ENV DBdir=/app/storge/
-ENV ServerDbFile=server/db.sqlite3
+ENV ServerDbFile=db.sqlite3
 ENV ENCRYPTION_KEY=A15pG0m3hwf0tfpVW6m92eZ6vRmAQA3C
 
 # Expose the server port
