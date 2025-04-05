@@ -1,4 +1,4 @@
-package update_test
+package commands_test
 
 import (
 	"encoding/json"

@@ -5,20 +5,38 @@ import (
 	"net"
 	"strings"
 	
+	create "github.com/rag-nar1/tcp-duckdb/commands/create"
+	grant "github.com/rag-nar1/tcp-duckdb/commands/grant"
+	link "github.com/rag-nar1/tcp-duckdb/commands/link"
+	migrate "github.com/rag-nar1/tcp-duckdb/commands/migrate"
+	update "github.com/rag-nar1/tcp-duckdb/commands/update"
 	"github.com/rag-nar1/tcp-duckdb/connect"
-	"github.com/rag-nar1/tcp-duckdb/create"
-	"github.com/rag-nar1/tcp-duckdb/grant"
-	"github.com/rag-nar1/tcp-duckdb/link"
 	"github.com/rag-nar1/tcp-duckdb/login"
-	"github.com/rag-nar1/tcp-duckdb/migrate"
 	"github.com/rag-nar1/tcp-duckdb/response"
 	"github.com/rag-nar1/tcp-duckdb/utils"
 	"github.com/rag-nar1/tcp-duckdb/server"
-	"github.com/rag-nar1/tcp-duckdb/update"
 	
 	_ "github.com/lib/pq"
 	_ "github.com/marcboeker/go-duckdb"
 )
+
+type Handler interface {
+	Handler(privilege string, req []string, writer *bufio.Writer)
+}
+
+type HandlerFunc func(privilege string, req []string, writer *bufio.Writer)
+
+func (f HandlerFunc) Handler(privilege string, req []string, writer *bufio.Writer) {
+	f(privilege, req, writer)
+}
+
+var Handlers = map[string]Handler{
+	"create": HandlerFunc(create.Handler),
+	"grant": HandlerFunc(grant.Handler),
+	"link": HandlerFunc(link.Handler),
+	"migrate": HandlerFunc(migrate.Handler),
+	"update": HandlerFunc(update.Handler),
+}
 
 func HandleConnection(conn net.Conn) {
 	defer conn.Close()
@@ -53,7 +71,7 @@ func Router(UID int, UserName, privilege string, reader *bufio.Reader, writer *b
 		req := strings.Split(string(rawreq[0:n]), " ")
 		utils.TrimList(req)
 
-		if req[0] != "connect" && req[0] != "create" && req[0] != "update" && req[0] != "grant" && req[0] != "migrate" && req[0] != "link" {
+		if _,ok := Handlers[req[0]]; !ok && req[0] != "connect"{
 			response.BadRequest(writer)
 			continue
 		}
@@ -67,27 +85,7 @@ func Router(UID int, UserName, privilege string, reader *bufio.Reader, writer *b
 			continue
 		}
 
-		if req[0] == "create" {
-			create.Handler(privilege, req[1:], writer)
-			continue
-		}
-
-		if req[0] == "grant" {
-			grant.Handler(privilege, req[1:], writer)
-			continue
-		}
-
-		if req[0] == "link" {
-			link.Handler(privilege, req[1:], writer)
-		}
-
-		if req[0] == "migrate" {
-			migrate.Handler(privilege, req[1:], writer)
-		}
-
-		if req[0] == "update" {
-			update.Handler(privilege, req[1:], writer)
-		}
+		Handlers[req[0]].Handler(privilege, req[1:], writer)
 	}
 
 }
