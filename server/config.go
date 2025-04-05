@@ -67,6 +67,7 @@ func ExecuteScheme(db *sql.DB) error {
 
 func NewServer() error {
 	// Check if database file exists
+	log.Println(os.Getenv("DBdir") + "server/" + os.Getenv("ServerDbFile"))	
 	dbPath := os.Getenv("DBdir") + "server/" + os.Getenv("ServerDbFile")
 	executeScheme := false
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
