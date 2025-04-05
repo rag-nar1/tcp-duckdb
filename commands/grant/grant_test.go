@@ -1,4 +1,4 @@
-package grant_test
+package commands_test
 
 import (
 	"testing"

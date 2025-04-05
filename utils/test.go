@@ -201,7 +201,7 @@ func GrantTable(conn *net.TCPConn, username, dbname, tablename, privilege string
 }
 
 func CleanUpDb(db *sql.DB) error {
-	files, err := filepath.Glob("../storge/users/*")
+	files, err := filepath.Glob("../../storge/users/*")
 	if err != nil {
 		return err
 	}
@@ -250,7 +250,7 @@ func CleanUpTables(db *sql.DB) error {
 }
 
 func CleanUp() {
-	db, err := sql.Open("sqlite3", "../storge/server/db.sqlite3")
+	db, err := sql.Open("sqlite3", "../../storge/server/db.sqlite3")
 	if err != nil {
 		log.Fatal(err)
 

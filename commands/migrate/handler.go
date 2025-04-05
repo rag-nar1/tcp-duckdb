@@ -1,4 +1,4 @@
-package migrate
+package commands
 
 import (
 	"github.com/rag-nar1/tcp-duckdb/internal"

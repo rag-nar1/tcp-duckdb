@@ -1,4 +1,4 @@
-package link_test
+package commands_test
 
 import (
 	"log"

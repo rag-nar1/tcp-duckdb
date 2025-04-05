@@ -1,4 +1,4 @@
-package grant
+package commands
 
 import (
 	"bufio"
